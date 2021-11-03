@@ -67,6 +67,7 @@ def intersect_and_union(pred_label,
         for old_id, new_id in label_map.items():
             label[label == old_id] = new_id
     if reduce_zero_label:
+        # avoid using underflow conversion
         label[label == 0] = 255
         label = label - 1
         label[label == 254] = 255
@@ -206,6 +207,105 @@ def mean_dice(results,
         label_map=label_map,
         reduce_zero_label=reduce_zero_label)
     return dice_result
+
+def get_confusion_matrix(pred_label, label, num_classes, ignore_index,label_map,reduce_zero_label):
+    """Intersection over Union
+       Args:
+           pred_label (np.ndarray): 2D predict map
+           label (np.ndarray): label 2D label map
+           num_classes (int): number of categories
+           ignore_index (int): index ignore in evaluation
+       """
+    total_mat = np.zeros((num_classes,num_classes), dtype=np.float)
+    num_imgs = len(pred_label)
+    assert len(label) == num_imgs
+    for i in range(num_imgs):
+        if label_map is not None:
+            for old_id, new_id in label_map.items():
+                label[i][label == old_id] = new_id
+        if reduce_zero_label:
+            # avoid using underflow conversion
+            label[i][label[i] == 0] = 255
+            label[i] = label[i] - 1
+            label[i][label[i] == 254] = 255
+        #mask = (label[i] != ignore_index)
+        mask = (pred_label[i] <= 1)
+        pred_label[i] = pred_label[i][mask]
+        label[i] = label[i][mask]
+        #print(pred_label[i].shape)
+        #print(label[i].shape)
+        n = num_classes
+        inds = n * label[i] + pred_label[i]
+        #print(np.bincount(inds, minlength=n**2).shape)
+        mat = np.bincount(inds, minlength=n**2).reshape(n, n)
+        #print(mat)
+        total_mat += mat
+
+    return total_mat
+
+def eval_attach_metrics(results,
+                 gt_seg_maps,
+                 num_classes,
+                 ignore_index,
+                 metrics=None,
+                 nan_to_num=None,
+                 label_map=dict(),
+                 reduce_zero_label=False):
+    """Calculate user attach evaluation metrics
+        Args:
+            results (list[ndarray]): List of prediction segmentation maps.
+            gt_seg_maps (list[ndarray]): list of ground truth segmentation maps.
+            num_classes (int): Number of categories.
+            ignore_index (int): Index that will be ignored in evaluation.
+            metrics (list[str] | str): Metrics to be evaluated, 'mIoU' and 'mDice'.
+            nan_to_num (int, optional): If specified, NaN values will be replaced
+                by the numbers defined by the user. Default: None.
+            label_map (dict): Mapping old labels to new labels. Default: dict().
+            reduce_zero_label (bool): Wether ignore zero label. Default: False.
+         Returns:
+             float: Overall accuracy on all images.
+             ndarray: Per category accuracy, shape (num_classes, ).
+             ndarray: Per category evalution metrics, shape (num_classes, ).
+           """
+    if isinstance(metrics, str):
+        metrics = [metrics]
+    allowed_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR']
+    if not set(metrics).issubset(set(allowed_metrics)):
+        raise KeyError('metrics {} is not supported'.format(metrics))
+    mat = get_confusion_matrix(results,gt_seg_maps,num_classes,ignore_index,label_map,reduce_zero_label)
+    tp,tn,fp,fn = 1,1,1,1 ##初始值
+    if num_classes ==2 :
+        tp = mat[1,1]
+        tn = mat[0,0]
+        fn = mat[1,0]
+        fp = mat[0,1]
+    pre = tp / (tp + fp)
+    rec = tp / (tp + fn)
+    fmeasures = 2 * (pre * rec) / (pre + rec)
+    fmax = fmeasures
+    fpr = fp / (fp + tn)
+    fnr = fn / (tp + fn)
+    att_metrics = []
+    for metric in metrics:
+        if metric == 'PRE':
+            att_metrics.append(pre)
+        elif metric == 'REC':
+            att_metrics.append(rec)
+        elif metric == 'F-measure':
+            att_metrics.append(fmeasures)
+        elif metric == 'F-max':
+            att_metrics.append(fmax)
+        elif metric == 'FPR':
+            att_metrics.append(fpr)
+        elif metric == 'FNR':
+            att_metrics.append(fnr)
+    if nan_to_num is not None:
+        att_metrics = [
+            np.nan_to_num(metric, nan=nan_to_num) for metric in att_metrics
+        ]
+
+    return att_metrics
+
 
 
 def mean_fscore(results,
@@ -354,6 +454,7 @@ def total_area_to_metrics(total_area_intersect,
         ndarray: Per category accuracy, shape (num_classes, ).
         ndarray: Per category evaluation metrics, shape (num_classes, ).
     """
+
     if isinstance(metrics, str):
         metrics = [metrics]
     allowed_metrics = ['mIoU', 'mDice', 'mFscore']
@@ -393,3 +494,10 @@ def total_area_to_metrics(total_area_intersect,
             for metric, metric_value in ret_metrics.items()
         })
     return ret_metrics
+
+
+if __name__ == '__main__':
+    fusion = eval_attach_metrics(np.array([[1,1,1,0,0,1,0,0,0],[1,0,0,1,0,1,1,1,0]]),np.array([[1,0,1,1,0,1,0,0,1],[1,0,0,1,0,0,0,0,0]]),2,255,metrics=['PRE','REC','F-measure','F-max','FPR','FNR'])
+    metris = eval_metrics(np.array([[1,1,1,0,0,1,0,0,0],[1,0,0,1,0,1,1,1,0]]),np.array([[1,0,1,1,0,1,0,0,1],[1,0,0,1,0,0,0,0,0]]),2,255,metrics=['mIoU'])
+    print(fusion)
+    print(metris)

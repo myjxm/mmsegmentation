@@ -1,0 +1,92 @@
+from mmseg.apis import inference_segmentor, init_segmentor,inference_segmentor_concactdata
+import mmcv
+import os
+from skimage import io,data,color,img_as_ubyte
+import numpy as np
+
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnet_r50-d8.py'
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnetplus_r50-d8.py'
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnetplus_rs101-d8.py'
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnet_rs101-d8.py'
+#config_file  = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnetplus_inter_r50-d8-combine-zrdy.py/'
+#config_file  = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnetplus_intra_r50-d8-combine-zrdy.py/'
+#config_file  = '/home/zrd/mmsegmentation-master/configs/mobilenet_v2/cpnetplus_m-v2-d8_512x512_160k_combine-zrdy.py/'
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnetplus_r50-d8-combine-zrdy.py'
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnetplus_rs101-d8-combine-zrdy.py'
+#config_file = '/home/zrd/mmsegmentation-master/configs/deeplabv3plus/deeplabv3plus_r50-d8_512x512_80k_combine-zrdy.py'
+config_file = '/home/zrd/mmsegmentation-master/configs/pspnet/pspnet_r50-d8_512x512_160k_combine-zrdy.py'
+
+#config_file = '/home/zrd/mmsegmentation-master/configs/cpnet/cpnet_r50-d8-classs3.py'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnet_r50-d8-combine/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnet_r50-d8-combine-box/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnet_r50-d8-master1325/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_r50-d8-combine-box/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_rs101-d8-combine-box/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnet-rs101-d8-combine-box/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnet_r50-d8-combine-zrdy/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_inter_r50-d8-combine-zrdy/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_intra_r50-d8-combine-zrdy/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_m-v2-d8_512x512_160k_combine-zrdy/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_r50-d8-combine-zrdy/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/cpnetplus_rs101-d8-combine-zrdy/latest.pth'
+#checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/deeplabv3plus_r50-d8_512x512_80k_combine-zrdy/latest.pth'
+checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/pspnet_r50-d8_combine-zrdy/latest.pth'
+
+
+
+
+
+# build the model from a config file and a checkpoint file
+model = init_segmentor(config_file, checkpoint_file, device='cuda:1')
+#path = '/home/zrd/segment-val'
+#path = '/home/home2/zrd/data/datasets/slam/oka/N02_4_Sequence_155_370-Image/PIC_Left_Rectified'
+#path = '/home/home2/zrd/data/datasets/slam/oka/N02_4_Sequence_155_370-Image/PIC_Right_Rectified'
+#path = '/home/home2/zrd/data/datasets/slam/dumuchuan/527-8/rectified/cam0'
+#path = '/home/home2/zrd/data/datasets/slam/dumuchuan/527-8/rectified/cam1'
+path = '/home/home2/zrd/data/val/validation-paper1/image_deal'
+#output_path = '/home/zrd/segment-val/cpnet_r50-d8-combine-box/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/cpnetplus_r50-d8-combine-box/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/cpnet_r50-d8-combine-zrdy/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/cpnetplus_inter_r50-d8-combine-zrdy/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/cpnetplus_r50-d8-combine-zrdy/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/cpnetplus_rs101-d8-combine-zrdy/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/pspnet_r50-d8_combine-zrdy/'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/cpnetplus_intra_r50-d8-combine-zrdy/'
+#output_path = '/home/zrd/segment-val/cpnetplus_rs101-d8-combine-box/'
+#output_path = '/home/zrd/segment-val/cpnet-rs101-d8-combine-box/'
+#output_path =  '/home/home2/zrd/data/datasets/slam/oka/N02_4_Sequence_155_370-Image/PIC_Left_Rectified_annotation'
+#output_path =  '/home/home2/zrd/data/datasets/slam/oka/N02_4_Sequence_155_370-Image/PIC_Right_Rectified_annotation'
+#output_path =  '/home/home2/zrd/data/datasets/slam/dumuchuan/527-8/rectified/cam0annotation'
+#output_path =  '/home/home2/zrd/data/datasets/slam/dumuchuan/527-8/rectified/cam1annotation'
+
+#output_path =  '/home/home2/zrd/data/datasets/slam/oka/N02_4_Sequence_155_370-Image/PIC_Left_Rectified_visionimg'
+#output_path =  '/home/home2/zrd/data/datasets/slam/oka/N02_4_Sequence_155_370-Image/PIC_Right_Rectified_visionimg'
+#output_path =  '/home/home2/zrd/data/datasets/slam/dumuchuan/527-8/rectified/cam0visionimg'
+#output_path =  '/home/home2/zrd/data/datasets/slam/dumuchuan/527-8/rectified/cam1visionimg'
+#output_path = '/home/home2/zrd/data/val/validation-paper1/wl/'
+output_path = '/home/home2/zrd/data/val/validation-paper1/segnet/'
+#save_path = '/home/home2/zrd/data/val/validation-paper1/wl_col/'
+#save_path = '/home/home2/zrd/data/val/validation-paper1/wasr_col/'
+save_path = '/home/home2/zrd/data/val/validation-paper1/segnet_col/'
+
+
+
+for file_path  in os.listdir(path):
+	if os.path.isfile(os.path.join(path, file_path)) == True:
+		image_file = os.path.join(path, file_path)
+		seg_file = os.path.join(output_path, file_path.replace('jpg','png'))
+		img = mmcv.imread(image_file)
+		seg = io.imread(seg_file)
+		seg = np.expand_dims(seg, axis=0)
+		if img.shape[:2] == seg.shape[1:3]:
+			model.show_result(img, seg, palette=[[0, 0, 0], [128, 0, 0]],out_file=os.path.join(save_path, file_path.replace('jpg','png')),save_annotation=False)
+
+
+
+
+# test a single image and show the results
+#img = '/home/zrd/segment-val/X31_1_0000052250.jpg-1.jpg'  # or img = mmcv.imread(img), which will only load it once
+#result = inference_segmentor_concactdata(model, img)
+#print(result[0].shape)
+#model.show_result(img, result,palette = [[0, 0, 0], [128, 0, 0]],out_file='X31_1_0000052250.jpg-1.png')
+#model.show_result(img, result,palette = [[0, 0, 0], [128, 0, 0],[0, 128, 0]],out_file='X31_1_0000052250.jpg-1.png')

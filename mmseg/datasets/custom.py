@@ -6,10 +6,11 @@ from collections import OrderedDict
 import mmcv
 import numpy as np
 from mmcv.utils import print_log
+from terminaltables import AsciiTable
 from prettytable import PrettyTable
 from torch.utils.data import Dataset
 
-from mmseg.core import eval_metrics, intersect_and_union, pre_eval_to_metrics
+from mmseg.core import eval_metrics,eval_attach_metrics, intersect_and_union, pre_eval_to_metrics
 from mmseg.utils import get_root_logger
 from .builder import DATASETS
 from .pipelines import Compose, LoadAnnotations
@@ -108,7 +109,7 @@ class CustomDataset(Dataset):
         if test_mode:
             assert self.CLASSES is not None, \
                 '`cls.CLASSES` or `classes` should be specified when testing'
-
+        self.att_metrics = att_metrics
         # join paths if data_root is specified
         if self.data_root is not None:
             if not osp.isabs(self.img_dir):

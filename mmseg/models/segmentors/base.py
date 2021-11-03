@@ -7,7 +7,8 @@ import mmcv
 import numpy as np
 import torch
 import torch.distributed as dist
-from mmcv.runner import BaseModule, auto_fp16
+import torch.nn as nn
+from mmcv.runner import auto_fp16
 
 
 class BaseSegmentor(BaseModule, metaclass=ABCMeta):

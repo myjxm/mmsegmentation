@@ -7,7 +7,6 @@ repos:
     rev: v2.2.0
     hooks:
       - id: seed-isort-config
-        args: ["--exclude", ".dev"]
   - repo: https://github.com/timothycrosley/isort
     rev: 4.3.21
     hooks:
@@ -34,22 +33,8 @@ repos:
     hooks:
       - id: markdownlint
         args: ["-r", "~MD002,~MD013,~MD029,~MD033,~MD034,~MD036"]
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
-    hooks:
-      - id: codespell
   - repo: https://github.com/myint/docformatter
     rev: v1.3.1
     hooks:
       - id: docformatter
         args: ["--in-place", "--wrap-descriptions", "79"]
-  - repo: local
-    hooks:
-      - id: update-model-index
-        name: update-model-index
-        description: Collect model information and update model-index.yml
-        entry: .dev/md2yml.py
-        additional_dependencies: [mmcv, lxml]
-        language: python
-        files: ^configs/.*\.md$
-        require_serial: true
