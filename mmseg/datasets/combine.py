@@ -25,6 +25,7 @@ class Combine(CustomDataset):
         super(Combine, self).__init__(
             split=split,
             reduce_zero_label=False,
-            att_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR'],
+            #att_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR'],
+
             **kwargs)
         assert osp.exists(self.img_dir) and self.split is not None

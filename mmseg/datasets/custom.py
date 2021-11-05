@@ -88,7 +88,8 @@ class CustomDataset(Dataset):
                  reduce_zero_label=False,
                  classes=None,
                  palette=None,
-                 gt_seg_map_loader_cfg=None):
+                 gt_seg_map_loader_cfg=None,
+                 att_metrics=None):
         self.pipeline = Compose(pipeline)
         self.img_dir = img_dir
         self.img_suffix = img_suffix

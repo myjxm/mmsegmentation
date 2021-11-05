@@ -1,4 +1,4 @@
-from mmseg.apis import inference_segmentor, init_segmentor,inference_segmentor_concactdata
+from mmseg.apis import inference_segmentor, init_segmentor
 import mmcv
 import os
 import argparse
@@ -89,7 +89,7 @@ def main():
     for file_path  in os.listdir(path):
         if os.path.isfile(os.path.join(path, file_path)) == True:
            img = os.path.join(path, file_path)
-           result = inference_segmentor_concactdata(model, img)
+           result = inference_segmentor(model, img)
            model.show_result(img, result, palette=[[0, 0, 0], [128, 0, 0]],out_file=os.path.join(output_path, file_path.replace('jpg','png')),save_annotation=True)
            count = count + 1
     end_time=datetime.datetime.now()

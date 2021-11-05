@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-from mmcv.runner import auto_fp16
+from mmcv.runner import BaseModule,auto_fp16
 
 
 class BaseSegmentor(BaseModule, metaclass=ABCMeta):
@@ -207,7 +207,8 @@ class BaseSegmentor(BaseModule, metaclass=ABCMeta):
                     show=False,
                     wait_time=0,
                     out_file=None,
-                    opacity=0.5):
+                    opacity=0.5,
+                    save_annotation=False):
         """Draw `result` over `img`.
 
         Args:
@@ -258,8 +259,10 @@ class BaseSegmentor(BaseModule, metaclass=ABCMeta):
 
         if show:
             mmcv.imshow(img, win_name, wait_time)
-        if out_file is not None:
+        if out_file is not None and save_annotation is False:
             mmcv.imwrite(img, out_file)
+        elif out_file is not None and save_annotation is True:
+            mmcv.imwrite(seg, out_file)
 
         if not (show or out_file):
             warnings.warn('show==False and out_file is not specified, only '
