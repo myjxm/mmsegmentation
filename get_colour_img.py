@@ -1,4 +1,4 @@
-from mmseg.apis import inference_segmentor, init_segmentor,inference_segmentor_concactdata
+from mmseg.apis import inference_segmentor, init_segmentor
 import mmcv
 import os
 from skimage import io,data,color,img_as_ubyte
