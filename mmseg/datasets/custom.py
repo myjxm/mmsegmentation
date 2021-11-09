@@ -436,7 +436,17 @@ class CustomDataset(Dataset):
                 summary_table_data.add_column(key, [val])
             else:
                 summary_table_data.add_column('m' + key, [val])
-
+        if self.att_metrics is not None:
+            attach_metrics = eval_attach_metrics(
+                results,
+                gt_seg_maps,
+                num_classes,
+                self.ignore_index,
+                self.att_metrics,
+                label_map=self.label_map,
+                reduce_zero_label=self.reduce_zero_label)
+            for key, value in attach_metrics.items():
+                summary_table_data.add_column(key, [value])
         print_log('per class results:', logger)
         print_log('\n' + class_table_data.get_string(), logger=logger)
         print_log('Summary:', logger)

@@ -115,8 +115,14 @@ class AffinityLoss(nn.Module):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None,
+                loss_type=['recall_loss','precision_loss','spec_loss'],
                 **kwargs):
-        """Forward function."""
+
+        """Forward function.
+           recall_part  类内召回率
+           precision_part 类内精准率
+           spec_part 类间召回率
+           spec_precision 类间精准率"""
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (
             reduction_override if reduction_override else self.reduction)
@@ -155,6 +161,18 @@ class AffinityLoss(nn.Module):
             avg_factor=avg_factor,
             **kwargs)
 
+        spec_precision = torch.sum((1 - cls_score) * (1 - label), dim=2)
+        denominator = torch.sum(1 - cls_score, dim=2)
+        denominator = denominator.masked_fill_(~(denominator > 0), 1)
+        spec_precision = spec_precision.div_(denominator)
+        spec_label = torch.ones_like(spec_precision)
+        spec_precision_loss = self.cls_criterion(
+            spec_precision,
+            spec_label,
+            reduction=reduction,
+            avg_factor=avg_factor,
+            **kwargs)
+
         precision_part = torch.sum(cls_score * vtarget, dim=2)
         denominator = torch.sum(cls_score, dim=2)
         denominator = denominator.masked_fill_(~(denominator > 0), 1)
@@ -166,8 +184,16 @@ class AffinityLoss(nn.Module):
             reduction=reduction,
             avg_factor=avg_factor,
             **kwargs)
-
-        global_term = recall_loss + spec_loss + precision_loss
+        global_term = None
+        for loss in loss_type:
+            if loss == 'recall_loss':
+               global_term = global_term + recall_loss
+            elif loss == 'spec_loss':
+               global_term = global_term + spec_loss
+            elif loss == 'precision_loss':
+               global_term = global_term + precision_loss
+            elif loss == 'spec_precision_loss':
+               global_term = global_term + spec_precision_loss
 
         loss_cls = self.loss_weight * (unary_term + global_term)
         return loss_cls

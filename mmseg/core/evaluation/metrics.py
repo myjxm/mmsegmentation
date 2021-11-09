@@ -122,6 +122,7 @@ def total_intersect_and_union(results,
             intersect_and_union(
                 result, gt_seg_map, num_classes, ignore_index,
                 label_map, reduce_zero_label)
+
         total_area_intersect += area_intersect
         total_area_union += area_union
         total_area_pred_label += area_pred_label
@@ -303,8 +304,8 @@ def eval_attach_metrics(results,
         att_metrics = [
             np.nan_to_num(metric, nan=nan_to_num) for metric in att_metrics
         ]
-
-    return att_metrics
+    dict_metrics = dict(zip(metrics,att_metrics))
+    return dict_metrics
 
 
 
