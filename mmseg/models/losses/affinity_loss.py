@@ -115,7 +115,7 @@ class AffinityLoss(nn.Module):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None,
-                loss_type=['recall_loss','precision_loss','spec_loss'],
+                loss_type=['precision_loss','spec_precision_loss'],
                 **kwargs):
 
         """Forward function.
@@ -184,7 +184,7 @@ class AffinityLoss(nn.Module):
             reduction=reduction,
             avg_factor=avg_factor,
             **kwargs)
-        global_term = None
+        global_term = torch.zeros(recall_loss.size())
         for loss in loss_type:
             if loss == 'recall_loss':
                global_term = global_term + recall_loss
