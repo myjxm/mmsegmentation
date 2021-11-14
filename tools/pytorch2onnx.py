@@ -347,7 +347,7 @@ if __name__ == '__main__':
     else:
         raise ValueError('invalid input shape')
 
-    test_mode = cfg.model.test_cfg.mode
+    test_mode = cfg.test_cfg.mode
 
     # build the model and load checkpoint
     cfg.model.train_cfg = None
