@@ -164,6 +164,7 @@ class CPHead(BaseDecodeHead):
         #print("cp_head_inputs[1]" + str(inputs[1].size()))
         #print("cp_head_inputs[2]" + str(inputs[2].size()))
         #print("cp_head_inputs[3]" + str(inputs[3].size()))
+        #print("cp_head_inputs[4]" + str(inputs[4].size()))
         x = self._transform_inputs(inputs)
         batch_size, channels, height, width = x.size()
         #print("cp_head_transfrom_outputs:" + str(x.size()))
