@@ -11,7 +11,7 @@ from mmseg.ops import resize
 from ..builder import HEADS, build_loss
 from ..utils import SelfAttentionBlock as _SelfAttentionBlock
 from .decode_head import BaseDecodeHead
-
+#from .bn import InPlaceABNSync as BatchNorm2d
 
 class AggregationModule(nn.Module):
     """Aggregation Module"""
@@ -97,6 +97,73 @@ class AggregationModule(nn.Module):
         return out
 
 
+class ConvBNReLU(nn.Module):
+    def __init__(self, in_chan, out_chan, ks=3, stride=1, padding=1,groups=1,conv_cfg=None,norm_cfg=None,*args, **kwargs):
+        super(ConvBNReLU, self).__init__()
+        self.conv = ConvModule(
+            in_chan,
+            out_chan,
+            ks,
+            stride=stride,
+            padding=padding,
+            groups=groups,
+            conv_cfg=conv_cfg,
+            norm_cfg=norm_cfg,
+            act_cfg=None,
+            bias = False)
+
+        #self.conv = nn.Conv2d(in_chan,
+        #        out_chan,
+        #        kernel_size = ks,
+        #        stride = stride,
+        #        padding = padding,
+        #        bias = False)
+        # self.bn = BatchNorm2d(out_chan)
+        #self.bn = BatchNorm2d(out_chan, activation='none')
+        self.relu = nn.ReLU()
+        self.init_weight()
+
+    def forward(self, x):
+        x = self.conv(x)
+        #x = self.bn(x)
+        x = self.relu(x)
+        return x
+
+    def init_weight(self):
+        for ly in self.children():
+            if isinstance(ly, nn.Conv2d):
+                nn.init.kaiming_normal_(ly.weight, a=1)
+                if not ly.bias is None: nn.init.constant_(ly.bias, 0)
+
+class BiSeNetOutput(nn.Module):
+    def __init__(self, in_chan, mid_chan, n_classes,groups=1,conv_cfg=None,norm_cfg=None,*args, **kwargs):
+        super(BiSeNetOutput, self).__init__()
+        self.conv = ConvBNReLU(in_chan, mid_chan, ks=3, stride=1, padding=1,groups=groups,conv_cfg=conv_cfg,norm_cfg=norm_cfg)
+        self.conv_out = nn.Conv2d(mid_chan, n_classes, kernel_size=1, bias=False)
+        self.init_weight()
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.conv_out(x)
+        return x
+
+    def init_weight(self):
+        for ly in self.children():
+            if isinstance(ly, nn.Conv2d):
+                nn.init.kaiming_normal_(ly.weight, a=1)
+                if not ly.bias is None: nn.init.constant_(ly.bias, 0)
+
+    def get_params(self):
+        wd_params, nowd_params = [], []
+        for name, module in self.named_modules():
+            if isinstance(module, (nn.Linear, nn.Conv2d)):
+                wd_params.append(module.weight)
+                if not module.bias is None:
+                    nowd_params.append(module.bias)
+            elif isinstance(module, BatchNorm2d):
+                nowd_params += list(module.parameters())
+        return wd_params, nowd_params
+
 @HEADS.register_module()
 class CPHeadPlus_V2(BaseDecodeHead):
     """Context Prior for Scene Segmentation.
@@ -112,20 +179,30 @@ class CPHeadPlus_V2(BaseDecodeHead):
                  aggress_dilation=1,
                  groups=1,
                  loss_prior_decode=dict(type='AffinityLoss', loss_weight=1.0),
+                 loss_detail_loss=None,
+                 c0_in_channels=-1,
+                 c0_channels=0,
                  c1_in_channels=-1,
                  c1_channels=0,
+                 detail_index=1,
+                 detail_channels=24,
                  **kwargs):
         super(CPHeadPlus_V2, self).__init__(**kwargs)
         self.prior_channels = prior_channels
         self.prior_size = _pair(prior_size)
         self.am_kernel_size = am_kernel_size
+        self.detail_index = detail_index
+        self.detail_channels = detail_channels
 
         self.aggregation = AggregationModule(self.in_channels, prior_channels,
                                              am_kernel_size,
                                              aggress_dilation=aggress_dilation,
                                              conv_cfg=self.conv_cfg,
                                              norm_cfg=self.norm_cfg)
-
+        if loss_detail_loss is not None:
+            self.conv_out_detail = BiSeNetOutput(self.detail_channels, 64, 1,groups=groups,conv_cfg=self.conv_cfg,norm_cfg=self.norm_cfg)
+        else:
+            self.conv_out_detail = None
         self.prior_conv = ConvModule(
             self.prior_channels,
             np.prod(self.prior_size),
@@ -158,7 +235,7 @@ class CPHeadPlus_V2(BaseDecodeHead):
             act_cfg=self.act_cfg)
 
         self.bottleneck = ConvModule(
-            self.in_channels + self.prior_channels * 2 + c1_channels,
+            self.in_channels + self.prior_channels * 2 + c1_channels + c0_channels,
             self.channels,
             3,
             padding=1,
@@ -167,11 +244,23 @@ class CPHeadPlus_V2(BaseDecodeHead):
             act_cfg=self.act_cfg)
 
         self.loss_prior_decode = build_loss(loss_prior_decode)
+        if loss_detail_loss is not None:
+           self.loss_detail_loss = build_loss(loss_detail_loss)
+        if c0_in_channels > 0 :
+            self.c0_bottleneck = ConvModule(
+                c0_in_channels,
+                c0_channels,
+                3,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=self.act_cfg)
+        else:
+            self.c0_bottleneck = None
         if c1_in_channels > 0:
             self.c1_bottleneck = ConvModule(
                 c1_in_channels,
                 c1_channels,
-                1,
+                3,
                 conv_cfg=self.conv_cfg,
                 norm_cfg=self.norm_cfg,
                 act_cfg=self.act_cfg)
@@ -182,13 +271,13 @@ class CPHeadPlus_V2(BaseDecodeHead):
         """Forward function."""
         x = self._transform_inputs(inputs)
         batch_size, channels, height, width = x.size()
-        print("cp_head_inputs[0]" + str(inputs[0].size()))
-        print("cp_head_inputs[1]" + str(inputs[1].size()))
-        print("cp_head_inputs[2]" + str(inputs[2].size()))
-        print("cp_head_inputs[3]" + str(inputs[3].size()))
-        print("cp_head_inputs[4]" + str(inputs[4].size()))
-        print("cp_head_inputs[4]" + str(inputs[5].size()))
-        print("cp_head_inputs[4]" + str(inputs[6].size()))
+        #print("cp_head_inputs[0]" + str(inputs[0].size()))
+        #print("cp_head_inputs[1]" + str(inputs[1].size()))
+        #print("cp_head_inputs[2]" + str(inputs[2].size()))
+        #print("cp_head_inputs[3]" + str(inputs[3].size()))
+        #print("cp_head_inputs[4]" + str(inputs[4].size()))
+        #print("cp_head_inputs[4]" + str(inputs[5].size()))
+        #print("cp_head_inputs[4]" + str(inputs[6].size()))
         #print("cpnet input height and width")
         #print(height)
         #print(width)
@@ -233,21 +322,37 @@ class CPHeadPlus_V2(BaseDecodeHead):
 
         print("cpnet cpouts output")
         print(cp_outs.shape[2:])
+        output = cp_outs
         if self.c1_bottleneck is not None:
-            c1_output = self.c1_bottleneck(inputs[3])
-            print("resnet layer1 output")
+            c1_output = self.c1_bottleneck(inputs[6])
+            print("resnet layer6 output")
             print(c1_output.shape[2:])
             output = resize(
                 input=c1_output,
                 size=cp_outs.shape[2:],
                 mode='bilinear',
                 align_corners=self.align_corners)
-            output = torch.cat([output, cp_outs], dim=1)
+            output = torch.cat([cp_outs,output], dim=1)
+        if self.c0_bottleneck is not None:
+            c0_output = self.c0_bottleneck(inputs[self.detail_index])
+            print("resnet layer1 output")
+            print(c0_output.shape[2:])
+            output = resize(
+                input=output,
+                size=c0_output.shape[2:],
+                mode='bilinear',
+                align_corners=self.align_corners)
+            output = torch.cat([output, c0_output], dim=1)
         output = self.bottleneck(output)
         output = self.cls_seg(output)
+        if self.loss_detail_loss is not None:
+            detail_loss_output = inputs[self.detail_index]
+            detail_loss_output = self.conv_out_detail(detail_loss_output)
+        else:
+            detail_loss_output = None
         print("cpnet output")
         print(output.shape[2:])
-        return output, context_prior_map
+        return output, context_prior_map, detail_loss_output
 
     def forward_test(self, inputs, img_metas, test_cfg):
         """Forward function for testing, only ``pam_cam`` is used."""
@@ -269,13 +374,17 @@ class CPHeadPlus_V2(BaseDecodeHead):
 
     def losses(self, seg_logit, seg_label):
         """Compute ``seg``, ``prior_map`` loss."""
-        seg_logit, context_prior_map = seg_logit
+        seg_logit, context_prior_map,detail_loss_output = seg_logit
         logit_size = seg_logit.shape[2:]
-        logit_size = torch.Size([64,64])
+        logit_size = torch.Size([self.prior_size[0],self.prior_size[1]])
         loss = dict()
         loss.update(super(CPHeadPlus_V2, self).losses(seg_logit, seg_label))
         prior_loss = self.loss_prior_decode(
             context_prior_map,
             self._construct_ideal_affinity_matrix(seg_label, logit_size))
+        if detail_loss_output is not None:
+           boundery_bce_loss,boundery_dice_loss = self.loss_detail_loss(detail_loss_output,seg_label.squeeze(1)) #seg_label 为（4，1，1，512，512）
+           loss['loss_boundery_bce'] = boundery_bce_loss
+           loss['loss_boundery_dice'] = boundery_dice_loss
         loss['loss_prior'] = prior_loss
         return loss

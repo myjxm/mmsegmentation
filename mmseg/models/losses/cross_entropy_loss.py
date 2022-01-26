@@ -13,7 +13,9 @@ def cross_entropy(pred,
                   class_weight=None,
                   reduction='mean',
                   avg_factor=None,
-                  ignore_index=-100):
+                  ignore_index=-100,
+                  alpha=1,
+                  gamma=0):
     """The wrapper function for :func:`F.cross_entropy`"""
     # class_weight is a manual rescaling weight given to each class.
     # If given, has to be a Tensor of size C element-wise losses
@@ -23,12 +25,13 @@ def cross_entropy(pred,
         weight=class_weight,
         reduction='none',
         ignore_index=ignore_index)
-
+    pt = torch.exp(-loss)
+    focal_loss = alpha * (1 - pt) ** gamma * loss
     # apply weights and do the reduction
     if weight is not None:
         weight = weight.float()
     loss = weight_reduce_loss(
-        loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
+        focal_loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
 
     return loss
 
@@ -61,7 +64,10 @@ def binary_cross_entropy(pred,
                          reduction='mean',
                          avg_factor=None,
                          class_weight=None,
-                         ignore_index=255):
+                         ignore_index=255,
+                         alpha=1,
+                         gamma=0
+                         ):
     """Calculate the binary CrossEntropy loss.
 
     Args:
@@ -104,7 +110,9 @@ def mask_cross_entropy(pred,
                        reduction='mean',
                        avg_factor=None,
                        class_weight=None,
-                       ignore_index=None):
+                       ignore_index=None,
+                       alpha=1,
+                       gamma=0):
     """Calculate the CrossEntropy loss for masks.
 
     Args:
@@ -161,7 +169,10 @@ class CrossEntropyLoss(nn.Module):
                  reduction='mean',
                  class_weight=None,
                  loss_weight=1.0,
-                 loss_name='loss_ce'):
+                 loss_name='loss_ce',
+                 alpha=1,
+                 gamma=0
+                 ):
         super(CrossEntropyLoss, self).__init__()
         assert (use_sigmoid is False) or (use_mask is False)
         self.use_sigmoid = use_sigmoid
@@ -169,6 +180,8 @@ class CrossEntropyLoss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
         self.class_weight = get_class_weight(class_weight)
+        self.alpha = alpha
+        self.gamma = gamma
 
         if self.use_sigmoid:
             self.cls_criterion = binary_cross_entropy
@@ -200,6 +213,8 @@ class CrossEntropyLoss(nn.Module):
             class_weight=class_weight,
             reduction=reduction,
             avg_factor=avg_factor,
+            alpha=self.alpha,
+            gamma=self.gamma,
             **kwargs)
         return loss_cls
 

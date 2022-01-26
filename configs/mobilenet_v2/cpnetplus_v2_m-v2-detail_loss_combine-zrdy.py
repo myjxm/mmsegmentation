@@ -12,13 +12,13 @@ model = dict(
         #_delete_=True,
         type='MobileNetV2',
         widen_factor=1.,
-        strides=(1, 2, 2, 1, 1, 2, 1),
+        strides=(1, 2, 2, 1, 1, 1, 1),
         dilations=(1, 1, 1, 2, 2, 4, 4),
         out_indices=(0, 1, 2, 3, 4, 5, 6)),
     decode_head=dict(
         type='CPHeadPlus_V2',
-        in_channels=96,
-        in_index=4,
+        in_channels=320,
+        in_index=6,
         channels=80, #最后分类卷积前的通道数，cpnet与prior_channels一致
         prior_channels=80,
         prior_size=64,  #prior_size与backbone输出特征图大小一致
@@ -30,13 +30,15 @@ model = dict(
         norm_cfg=norm_cfg,
         align_corners=False,
         c0_in_channels=24,
-        c0_channels=6,  # decode对第一层降维后的通道数
-        c1_in_channels=320,
-        c1_channels=320, #decode对最后层降维后的通道数
+        c0_channels=24,  # decode对第一层降维后的通道数
+        c1_in_channels=-1,
+        c1_channels=0, #decode对最后层降维后的通道数
+        detail_index=1,
+        detail_channels=24,
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
+            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0, alpha=1, gamma=2),
         loss_prior_decode=dict(type='AffinityLoss', loss_weight=1.0),
-
+        loss_detail_loss=dict(type='DetailAggregateLoss', loss_weight=1.0),
     ),
     auxiliary_head=dict(
         type='FCNHead',

@@ -115,7 +115,7 @@ class AffinityLoss(nn.Module):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None,
-                loss_type=['recall_loss','spec_loss','precision_loss','spec_precision_loss'],
+                loss_type=['recall_loss','spec_loss','precision_loss'],
                 **kwargs):
 
         """Forward function.
