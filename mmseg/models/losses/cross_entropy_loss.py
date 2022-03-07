@@ -1,11 +1,75 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from ..builder import LOSSES
 from .utils import get_class_weight, weight_reduce_loss
+import numpy as np
+import pandas as pd
+import math
+import copy
+np.set_printoptions(threshold=np.inf)
 
+def pixel_cross_entropy(pred,
+                  label,
+                  weight=None,
+                  class_weight=None,
+                  reduction='mean',
+                  avg_factor=None,
+                  ignore_index=-100,
+                  alpha=1,
+                  gamma=0):
+    """The wrapper function for :func:`F.cross_entropy`"""
+    # class_weight is a manual rescaling weight given to each class.
+    # If given, has to be a Tensor of size C element-wise losses
+    batch_num=label.shape[0]
+    heigh=label.shape[1]
+    width=label.shape[2]
+    lab=[pd.DataFrame(np.argwhere(np.row_stack((lab,np.ones(width,dtype='int')))==1),columns=['value','key']).groupby('key',as_index=False).min().sort_values(by='key') for lab in label.tolist()]
+    colidx=np.array([i for i in range(heigh)])
+    diclab=[dict(zip(sublab['key'],sublab['value'])) for sublab in lab]
+    w=[np.array([colidx-subdiclab[i] for i in range(width)]).T for subdiclab in diclab]
+    g=[np.array([heigh-subdiclab[i] for i in range(width)])/8 for subdiclab in diclab]
+    a=copy.deepcopy(w)
+    for suba in a:
+        suba[suba>=0]=1
+        suba[suba<0]=0
+    b=copy.deepcopy(w)
+    for subb in b:
+        subb[subb>=0]=0
+        subb[subb<0]=1
+    a = np.array(a)
+    b = np.array(b)
+    #res = 1+ np.exp(-np.square(w)/(np.square(g)*2))/np.sqrt(2*math.pi)
+    res = np.array([1 + np.exp(-np.square(w[i]) / (np.square(g[i]) * 2 + 1)) / np.sqrt(2 * math.pi) for i in range(batch_num)])
+    res = res*a +b
+    loss = F.cross_entropy(
+        pred,
+        label,
+        weight=class_weight,
+        reduction='none',
+        ignore_index=ignore_index)
+    res = torch.tensor(res).requires_grad_(False).type(torch.cuda.FloatTensor).to(loss.get_device())
+    # print('res')
+    # print(res.cpu().numpy())
+    # print('before_res_loss')
+    # print(loss.cpu().numpy())
+    loss = res*loss
+    # print('loss_shape')
+    # print(loss.shape)
+    # print(loss.cpu().numpy())
+    pt = torch.exp(-loss)
+    focal_loss = alpha * (1 - pt) ** gamma * loss
+    # print(focal_loss.shape)
+    # apply weights and do the reduction
+    if weight is not None:
+        weight = weight.float()
+    loss = weight_reduce_loss(
+        focal_loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
+    return loss
 
 def cross_entropy(pred,
                   label,
@@ -18,7 +82,7 @@ def cross_entropy(pred,
                   gamma=0):
     """The wrapper function for :func:`F.cross_entropy`"""
     # class_weight is a manual rescaling weight given to each class.
-    # If given, has to be a Tensor of size C element-wise losses
+
     loss = F.cross_entropy(
         pred,
         label,
@@ -27,6 +91,7 @@ def cross_entropy(pred,
         ignore_index=ignore_index)
     pt = torch.exp(-loss)
     focal_loss = alpha * (1 - pt) ** gamma * loss
+    #print(focal_loss.shape)
     # apply weights and do the reduction
     if weight is not None:
         weight = weight.float()
@@ -171,7 +236,8 @@ class CrossEntropyLoss(nn.Module):
                  loss_weight=1.0,
                  loss_name='loss_ce',
                  alpha=1,
-                 gamma=0
+                 gamma=0,
+                 use_pixel_weight=False,
                  ):
         super(CrossEntropyLoss, self).__init__()
         assert (use_sigmoid is False) or (use_mask is False)
@@ -182,11 +248,14 @@ class CrossEntropyLoss(nn.Module):
         self.class_weight = get_class_weight(class_weight)
         self.alpha = alpha
         self.gamma = gamma
+        self.use_pixel_weight = use_pixel_weight
 
         if self.use_sigmoid:
             self.cls_criterion = binary_cross_entropy
         elif self.use_mask:
             self.cls_criterion = mask_cross_entropy
+        elif self.use_pixel_weight:
+            self.cls_criterion = pixel_cross_entropy
         else:
             self.cls_criterion = cross_entropy
         self._loss_name = loss_name

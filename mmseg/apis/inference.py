@@ -67,7 +67,7 @@ class LoadImage:
         return results
 
 
-def inference_segmentor(model, img):
+def inference_segmentor(model, img, roc=-1): #roc用于roc曲线分类阈值
     """Inference image(s) with the segmentor.
 
     Args:
@@ -95,7 +95,7 @@ def inference_segmentor(model, img):
 
     # forward the model
     with torch.no_grad():
-        result = model(return_loss=False, rescale=True, **data)
+        result = model(return_loss=False, rescale=True,roc=roc,**data)
     return result
 
 

@@ -26,6 +26,6 @@ class Combine(CustomDataset):
             split=split,
             reduce_zero_label=False,
             #att_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR'],
-
+            #att_metrics=['Grmse','Gmax'],  ##训练不能价att_metrics因为pre_eval_to_metrics(results, metric)
             **kwargs)
         assert osp.exists(self.img_dir) and self.split is not None

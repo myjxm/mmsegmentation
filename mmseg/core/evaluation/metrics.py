@@ -4,6 +4,7 @@ from collections import OrderedDict
 import mmcv
 import numpy as np
 import torch
+import pandas as pd
 
 
 def f_score(precision, recall, beta=1):
@@ -75,6 +76,7 @@ def intersect_and_union(pred_label,
     mask = (label != ignore_index)
     pred_label = pred_label[mask]
     label = label[mask]
+
 
     intersect = pred_label[pred_label == label]
     area_intersect = torch.histc(
@@ -217,6 +219,12 @@ def get_confusion_matrix(pred_label, label, num_classes, ignore_index,label_map,
            num_classes (int): number of categories
            ignore_index (int): index ignore in evaluation
        """
+    #print(pred_label[0][0])
+    #print(type(pred_label[0][0]))
+    if type(pred_label).__name__ == 'list':
+       pred_label = [np.array(list(t)) for t in pred_label]
+    if type(label).__name__ == 'generator':
+       label = [np.array(t) for t in list(label)]
     total_mat = np.zeros((num_classes,num_classes), dtype=np.float)
     num_imgs = len(pred_label)
     assert len(label) == num_imgs
@@ -224,6 +232,7 @@ def get_confusion_matrix(pred_label, label, num_classes, ignore_index,label_map,
         if label_map is not None:
             for old_id, new_id in label_map.items():
                 label[i][label == old_id] = new_id
+        #label[i][label[i] ==4 ] = 0
         if reduce_zero_label:
             # avoid using underflow conversion
             label[i][label[i] == 0] = 255
@@ -270,42 +279,78 @@ def eval_attach_metrics(results,
            """
     if isinstance(metrics, str):
         metrics = [metrics]
-    allowed_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR']
+    allowed_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR','Grmse','Gmax']
     if not set(metrics).issubset(set(allowed_metrics)):
         raise KeyError('metrics {} is not supported'.format(metrics))
-    mat = get_confusion_matrix(results,gt_seg_maps,num_classes,ignore_index,label_map,reduce_zero_label)
-    tp,tn,fp,fn = 1,1,1,1 ##初始值
-    if num_classes ==2 :
-        tp = mat[1,1]
-        tn = mat[0,0]
-        fn = mat[1,0]
-        fp = mat[0,1]
-    pre = tp / (tp + fp)
-    rec = tp / (tp + fn)
-    fmeasures = 2 * (pre * rec) / (pre + rec)
-    fmax = fmeasures
-    fpr = fp / (fp + tn)
-    fnr = fn / (tp + fn)
-    att_metrics = []
+    att_metrics = OrderedDict()
+    imagesnum=len(results)
+    width=results[0].shape[1]
+    high=results[0].shape[0]
+    #print(imagesnum)
+    #print(width)
+    #print(high)
+    #pd.DataFrame(np.argwhere(results[0] == 1), columns=['value', 'key']).sort_values(by='value')['key'].tolist()
+
+    y = np.array([np.array(pd.DataFrame(np.argwhere(np.row_stack((result,np.ones(width,dtype='int'))) == 1), columns=['value', 'key']).groupby('key',as_index=False).min().sort_values(by='key')['value'].tolist()) for result in results])
+    ygt = np.array([np.array(pd.DataFrame(np.argwhere(np.row_stack((gt_seg_map,np.ones(width,dtype='int'))) == 1), columns=['value', 'key']).groupby('key',as_index=False).min().sort_values(by='key')['value'].tolist()) for gt_seg_map in gt_seg_maps])
     for metric in metrics:
-        if metric == 'PRE':
-            att_metrics.append(pre)
-        elif metric == 'REC':
-            att_metrics.append(rec)
-        elif metric == 'F-measure':
-            att_metrics.append(fmeasures)
-        elif metric == 'F-max':
-            att_metrics.append(fmax)
-        elif metric == 'FPR':
-            att_metrics.append(fpr)
-        elif metric == 'FNR':
-            att_metrics.append(fnr)
+        if metric == 'Grmse':
+            #print(type(y[0]))
+            #print(y.shape)
+            #print(type(ygt[0]))
+            #print(ygt.shape)
+            #print(np.square(y-ygt).sum(1))
+            #print(np.sqrt(np.square(y-ygt).sum(1)))
+            #aa = y-ygt
+            att_metrics['Grmse'] = (np.sqrt(np.square(y-ygt).sum(1))/(width)).sum()/imagesnum
+            #print(att_metrics)
+            #print(type(att_metrics['Grmse']))
+        if metric == 'Gmax':
+            att_metrics['Gmax'] = (np.max(np.absolute(y-ygt), 1).sum())/imagesnum
+
+    ret_metrics = {
+        metric: value
+        for metric, value in att_metrics.items()
+    }
     if nan_to_num is not None:
-        att_metrics = [
-            np.nan_to_num(metric, nan=nan_to_num) for metric in att_metrics
-        ]
-    dict_metrics = dict(zip(metrics,att_metrics))
-    return dict_metrics
+        ret_metrics = OrderedDict({
+            metric: np.nan_to_num(metric_value, nan=nan_to_num)
+            for metric, metric_value in ret_metrics.items()
+        })
+    return ret_metrics
+    # mat = get_confusion_matrix(results,gt_seg_maps,num_classes,ignore_index,label_map,reduce_zero_label)
+    # tp,tn,fp,fn = 1,1,1,1 ##初始值
+    # if num_classes ==2 :
+    #     tp = mat[1,1]
+    #     tn = mat[0,0]
+    #     fn = mat[1,0]
+    #     fp = mat[0,1]
+    # pre = tp / (tp + fp)
+    # rec = tp / (tp + fn)
+    # fmeasures = 2 * (pre * rec) / (pre + rec)
+    # fmax = fmeasures
+    # fpr = fp / (fp + tn)
+    # fnr = fn / (tp + fn)
+    # att_metrics = []
+    # for metric in metrics:
+    #     if metric == 'PRE':
+    #         att_metrics.append(pre)
+    #     elif metric == 'REC':
+    #         att_metrics.append(rec)
+    #     elif metric == 'F-measure':
+    #         att_metrics.append(fmeasures)
+    #     elif metric == 'F-max':
+    #         att_metrics.append(fmax)
+    #     elif metric == 'FPR':
+    #         att_metrics.append(fpr)
+    #     elif metric == 'FNR':
+    #         att_metrics.append(fnr)
+    # if nan_to_num is not None:
+    #     att_metrics = [
+    #         np.nan_to_num(metric, nan=nan_to_num) for metric in att_metrics
+    #     ]
+    # dict_metrics = dict(zip(metrics,att_metrics))
+    # return dict_metrics
 
 
 
@@ -415,9 +460,12 @@ def pre_eval_to_metrics(pre_eval_results,
     # convert list of tuples to tuple of lists, e.g.
     # [(A_1, B_1, C_1, D_1), ...,  (A_n, B_n, C_n, D_n)] to
     # ([A_1, ..., A_n], ..., [D_1, ..., D_n])
+    #print(pre_eval_results)
     pre_eval_results = tuple(zip(*pre_eval_results))
     assert len(pre_eval_results) == 4
-
+    #print('pre_eval_results')
+    #print(len(pre_eval_results[0])) 评估集的大小
+    eval_img_nums = len(pre_eval_results[0])
     total_area_intersect = sum(pre_eval_results[0])
     total_area_union = sum(pre_eval_results[1])
     total_area_pred_label = sum(pre_eval_results[2])
@@ -426,7 +474,7 @@ def pre_eval_to_metrics(pre_eval_results,
     ret_metrics = total_area_to_metrics(total_area_intersect, total_area_union,
                                         total_area_pred_label,
                                         total_area_label, metrics, nan_to_num,
-                                        beta)
+                                        beta,eval_img_nums=eval_img_nums)
 
     return ret_metrics
 
@@ -437,7 +485,7 @@ def total_area_to_metrics(total_area_intersect,
                           total_area_label,
                           metrics=['mIoU'],
                           nan_to_num=None,
-                          beta=1):
+                          beta=1,eval_img_nums=3674):
     """Calculate evaluation metrics
     Args:
         total_area_intersect (ndarray): The intersection of prediction and
@@ -458,12 +506,16 @@ def total_area_to_metrics(total_area_intersect,
 
     if isinstance(metrics, str):
         metrics = [metrics]
-    allowed_metrics = ['mIoU', 'mDice', 'mFscore']
+    allowed_metrics = ['mIoU', 'mDice', 'mFscore','mFpr','mFnr','kappa','mcc','hloss']
     if not set(metrics).issubset(set(allowed_metrics)):
         raise KeyError('metrics {} is not supported'.format(metrics))
 
     all_acc = total_area_intersect.sum() / total_area_label.sum()
+    all_precision = total_area_intersect.sum() / total_area_pred_label.sum()
+    #print('all_precision')
+    #print(all_precision)
     ret_metrics = OrderedDict({'aAcc': all_acc})
+    #ret_metrics['aPre'] = all_precision
     for metric in metrics:
         if metric == 'mIoU':
             iou = total_area_intersect / total_area_union
@@ -484,6 +536,36 @@ def total_area_to_metrics(total_area_intersect,
             ret_metrics['Fscore'] = f_value
             ret_metrics['Precision'] = precision
             ret_metrics['Recall'] = recall
+        elif metric == 'mFpr':
+            #print(total_area_pred_label)
+            #print(total_area_intersect)
+            #print(total_area_label)
+            #print(512*512*eval_img_nums)
+            #print(512*512*eval_img_nums - total_area_label)
+            #print(total_area_pred_label.sum()/360)
+            fpr = (total_area_pred_label-total_area_intersect)/(total_area_pred_label.sum() - total_area_label)
+            ret_metrics['fpr'] = fpr
+        elif metric == 'mFnr':
+            fnr = (total_area_union - total_area_pred_label) / total_area_label
+            ret_metrics['fnr'] = fnr
+        elif metric == 'kappa':
+            pe = (total_area_pred_label * total_area_label + (total_area_pred_label.sum()-total_area_union + total_area_label - total_area_intersect)*(total_area_pred_label.sum() - total_area_label))/(total_area_pred_label.sum()*total_area_pred_label.sum())
+            allacc = (total_area_pred_label.sum()-total_area_union+total_area_intersect) / total_area_pred_label.sum()
+            kappa = 1 - (1 - allacc) / (1 - pe)
+            print('allacc')
+            print(allacc)
+            print('pe')
+            print(pe)
+            ret_metrics['kappa'] = kappa
+        elif metric == 'mcc':
+            mcc=((total_area_pred_label.sum() - total_area_union) * total_area_intersect - (
+                        total_area_union - total_area_label)*(total_area_label - total_area_intersect)) / \
+            np.sqrt(total_area_pred_label * total_area_label * (total_area_pred_label.sum() - total_area_label) * (
+                        total_area_pred_label.sum() - total_area_union + total_area_label - total_area_intersect))
+            ret_metrics['mcc'] = mcc
+        elif  metric == 'hloss':
+            hloss = (total_area_union - total_area_intersect) / total_area_pred_label.sum()
+            ret_metrics['hloss'] = hloss
 
     ret_metrics = {
         metric: value.numpy()

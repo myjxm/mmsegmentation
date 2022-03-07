@@ -8,26 +8,36 @@ from skimage import io
 from prettytable import PrettyTable
 from collections import OrderedDict
 import argparse
+import requests
+import json
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
     parser.add_argument("--seg-path", type=str,
-                        help="Path to dataset files on which inference is performed.")
+                       help="Path to dataset files on which inference is performed.")
     parser.add_argument("--test-path", type=str,
                         help="Where to save predicted mask.")
+    parser.add_argument("--modelname", type=str, default='',
+                        help="modelname")
+    parser.add_argument("--roc", type=float, default=-1,
+                        help="roc threshold")
+    parser.add_argument("--dataset", type=str, default='',
+                        help="validation dataset")
     return parser.parse_args()
     
     
 def evaluate(results,
              gt_seg_maps,
              num_classes=2,
-             metric='mIoU',
+             metric=['mIoU', 'mFscore','mFpr','mFnr','kappa','mcc','hloss'],
              logger=None,
              ignore_index=255,
              label_map=None,
              reduce_zero_label=False,
              class_names=['other','water'],
-             att_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR'],
+             #att_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR'],
+             #att_metrics = ['Grmse','Gmax'],
+             att_metrics = None,
              efficient_test=False,
              **kwargs):
     """Evaluate the dataset.
@@ -45,7 +55,7 @@ def evaluate(results,
 
     if isinstance(metric, str):
         metric = [metric]
-    allowed_metrics = ['mIoU', 'mDice']  # 'PRE','REC','F-measure','F-max','FPR','FNR'
+    allowed_metrics = ['mIoU', 'mDice','mFscore','mFpr','mFnr','kappa','mcc','hloss']  # 'PRE','REC','F-measure','F-max','FPR','FNR'
     if not set(metric).issubset(set(allowed_metrics)):
         raise KeyError('metric {} is not supported'.format(metric))
     eval_results = {}
@@ -94,6 +104,8 @@ def evaluate(results,
             reduce_zero_label=reduce_zero_label)
         for key,value in attach_metrics.items():
             summary_table_data.add_column(key,[value])
+        for key, value in attach_metrics.items():
+            eval_results[key] = value
     print_log('per class results:', logger)
     print_log('\n' + class_table_data.get_string(), logger=logger)
     print_log('Summary:', logger)
@@ -101,16 +113,17 @@ def evaluate(results,
     # each metric dict
     for key, value in ret_metrics_summary.items():
         if key == 'aAcc':
-            eval_results[key] = value / 100.0
+            eval_results[key] = value
         else:
-            eval_results['m' + key] = value / 100.0
+            eval_results['m' + key] = value
 
     ret_metrics_class.pop('Class', None)
     for key, value in ret_metrics_class.items():
         eval_results.update({
-            key + '.' + str(name): value[idx] / 100.0
+            key + '.' + str(name): value[idx]
             for idx, name in enumerate(class_names)
         })
+
     # class_table_data = [['Class'] + [m[1:] for m in metric] + ['Acc']]
     # ret_metrics_round = [
     #     np.round(ret_metric * 100, 2) for ret_metric in ret_metrics
@@ -160,6 +173,17 @@ def evaluate(results,
 
 def main():
     args = parse_args()
+    url = r"http://localhost:8080/query/statistic_status/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
+    res = requests.get(url)
+    res = json.loads(res.text)
+    print(res)
+    if res['code'] == 0 and len(res['data']) > 0 :
+        if res['data'][0]['metric_status'] == 'Y':
+           return
+    print(res)
+    url = r"http://localhost:8080/init_insert/statistic_two_class/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
+    res = requests.get(url)
+    print(json.loads(res.text))
     seg_list=[]
     test_list=[]
     for file_path  in os.listdir(args.seg_path):
@@ -171,6 +195,17 @@ def main():
             if seg.shape == test.shape:
                test_list.append(test)
                seg_list.append(seg)
-    evaluate(test_list,seg_list)
+    eval_results=evaluate(test_list,seg_list)
+    eval_results['modelname'] = args.modelname
+    eval_results['roc'] = args.roc
+    eval_results['dataset'] = args.dataset
+    url = r"http://localhost:8080/update/statistic_two_class/"
+    headers = {'content-type': 'application/json'}
+    #requests.post(url, json=json.dumps(eval_results),headers=headers)
+    res = requests.post(url, json=eval_results)
+    print(json.loads(res.text))
+    url = r"http://localhost:8080/update/statistic_status/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
+    res = requests.get(url)
+    print(json.loads(res.text))
 if __name__ == '__main__':
     main()

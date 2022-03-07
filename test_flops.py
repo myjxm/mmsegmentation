@@ -5,11 +5,12 @@ from mmcv import Config
 from mmcv.cnn import get_model_complexity_info
 
 from mmseg.models import build_segmentor
-
+from mmcv.tensorrt import (TRTWraper, is_tensorrt_plugin_loaded, onnx2trt,
+                           save_trt_engine)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
-    parser.add_argument('config', help='train config file path')
+    parser.add_argument('trtfile', help='trtfile file path')
     parser.add_argument(
         '--shape',
         type=int,
@@ -31,24 +32,24 @@ def main():
     else:
         raise ValueError('invalid input shape')
 
-    cfg = Config.fromfile(args.config)
-    cfg.model.pretrained = None
-    model = build_segmentor(
-        cfg.model,
-        train_cfg=cfg.get('train_cfg'),
-        test_cfg=cfg.get('test_cfg')).cuda()
-    model.eval()
+    # cfg = Config.fromfile(args.config)
+    # cfg.model.pretrained = None
+    # model = build_segmentor(
+    #     cfg.model,
+    #     train_cfg=cfg.get('train_cfg'),
+    #     test_cfg=cfg.get('test_cfg')).cuda()
+    # model.eval()
 
-
-
-    if hasattr(model, 'forward_dummy'):
-        model.forward = model.forward_dummy
+    trt_model = TRTWraper(args.trtfile, ['input'], ['output'])
+    trt_model.eval()
+    if hasattr(trt_model, 'forward_dummy'):
+        trt_model.forward = trt_model.forward_dummy
     else:
         raise NotImplementedError(
             'FLOPs counter is currently not currently supported with {}'.
-            format(model.__class__.__name__))
+            format(trt_model.__class__.__name__))
 
-    flops, params = get_model_complexity_info(model, input_shape)
+    flops, params = get_model_complexity_info(trt_model, input_shape)
     split_line = '=' * 30
     print('{0}\nInput shape: {1}\nFlops: {2}\nParams: {3}\n{0}'.format(
         split_line, input_shape, flops, params))

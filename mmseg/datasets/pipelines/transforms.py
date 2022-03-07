@@ -104,18 +104,23 @@ class Resize(object):
                  multiscale_mode='range',
                  ratio_range=None,
                  keep_ratio=True):
+        #print("######################################################")
+        #print(img_scale)
+        #print(ratio_range)
+        #print(keep_ratio)
         if img_scale is None:
             self.img_scale = None
         else:
-            if isinstance(img_scale, list):
+            if isinstance(img_scale, list):  #配置输入的是元组不是list
                 self.img_scale = img_scale
             else:
-                self.img_scale = [img_scale]
+                self.img_scale = [img_scale]  #所以这里img_scale 长度为1
             assert mmcv.is_list_of(self.img_scale, tuple)
 
         if ratio_range is not None:
             # mode 1: given img_scale=None and a range of image ratio
             # mode 2: given a scale and a range of image ratio
+            #print(ratio_range)
             assert self.img_scale is None or len(self.img_scale) == 1
         else:
             # mode 3 and 4: given multiple scales or a range of scales
@@ -237,6 +242,10 @@ class Resize(object):
 
     def _resize_img(self, results):
         """Resize images with ``results['scale']``."""
+        #print('##############################resize_image')
+        #print(self.keep_ratio)
+        #print(results['scale'])
+
         if self.keep_ratio:
             img, scale_factor = mmcv.imrescale(
                 results['img'], results['scale'], return_scale=True)
@@ -251,6 +260,7 @@ class Resize(object):
                 results['img'], results['scale'], return_scale=True)
         scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
                                 dtype=np.float32)
+        #print(scale_factor)
         results['img'] = img
         results['img_shape'] = img.shape
         results['pad_shape'] = img.shape  # in case that there is no padding
@@ -572,6 +582,9 @@ class RandomCrop(object):
 
     def get_crop_bbox(self, img):
         """Randomly get a crop bounding box."""
+        #print("##############################crop")
+        #print(img.shape)
+        #print(self.crop_size)
         margin_h = max(img.shape[0] - self.crop_size[0], 0)
         margin_w = max(img.shape[1] - self.crop_size[1], 0)
         offset_h = np.random.randint(0, margin_h + 1)
@@ -584,7 +597,7 @@ class RandomCrop(object):
     def crop(self, img, crop_bbox):
         """Crop from ``img``"""
         crop_y1, crop_y2, crop_x1, crop_x2 = crop_bbox
-        img = img[crop_y1:crop_y2, crop_x1:crop_x2, ...]
+        img = img[crop_y1:crop_y2, crop_x1:crop_x2, ...] #numpy 截取序号若超过shape范围不报错，直接返回边界内的数据
         return img
 
     def __call__(self, results):

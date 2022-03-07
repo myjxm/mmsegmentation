@@ -87,15 +87,15 @@ def parse_args():
 
 def main():
     args = parse_args()
-    # url = r"http://localhost:8080/query/statistic_status/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
-    # res = requests.get(url)
-    # res = json.loads(res.text)
-    # print(res)
-    # if res['code'] == 0 and len(res['data']) > 0:
-    #     if res['data'][0]['metric_status'] == 'Y':
-    #         return
-    # url = r"http://localhost:8080/init_insert/performance/" + args.modelname
-    # requests.get(url)
+    url = r"http://localhost:8080/query/statistic_status/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
+    res = requests.get(url)
+    res = json.loads(res.text)
+    print(res)
+    if res['code'] == 0 and len(res['data']) > 0:
+        if res['data'][0]['metric_status'] == 'Y':
+            return
+    url = r"http://localhost:8080/init_insert/performance/" + args.modelname
+    requests.get(url)
     config_file = args.config
     checkpoint_file = args.load_from
     path = args.image_path
@@ -122,8 +122,8 @@ def main():
     print('!!!Please be cautious if you use the results in papers. '
           'You may need to check if all ops are supported and verify that the '
           'flops computation is correct.')
-    # url = r"http://localhost:8080/update/performance/gflops/" + args.modelname +  "/" + flops + "/" + params
-    # requests.get(url)
+    url = r"http://localhost:8080/update/performance/gflops/" + args.modelname +  "/" + flops + "/" + params
+    requests.get(url)
 
     model = init_segmentor(config_file, checkpoint_file, device='cuda:1')
     start_time=datetime.datetime.now()
@@ -139,10 +139,10 @@ def main():
     print('endtime: '+ str(end_time))
     print(count)
     print(output_path + ' fps :' + str(1/((end_time-start_time).seconds/count)))
-    # url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(1/((end_time-start_time).seconds/count))
-    # requests.get(url)
-    # url = r"http://localhost:8080/update/test_batch_status/" + args.modelname
-    # requests.get(url)
+    url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(1/((end_time-start_time).seconds/count))
+    requests.get(url)
+    url = r"http://localhost:8080/update/test_batch_status/" + args.modelname
+    requests.get(url)
 
 if __name__ == '__main__':
     main()

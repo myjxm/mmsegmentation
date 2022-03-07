@@ -10,7 +10,7 @@ crop_size = (512, 512)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations'),
-    dict(type='Resize', img_scale=(2048, 512), ratio_range=(0.5, 2.0)),
+    dict(type='Resize', img_scale=(2048, 512), ratio_range=(0.5, 2.0)),  #img_scale是图片的大小
     dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),  #cat_max_ratio指单个类别可以在裁剪后的图片中占有的比率
     dict(type='RandomFlip', prob=0.5),   ##随机反转，看随机数是否小于Prob,小于就翻，默认 水平翻转
     dict(type='RandomRotate',prob=0.5,degree=5),  ##随机旋转

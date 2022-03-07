@@ -90,6 +90,7 @@ class CustomDataset(Dataset):
                  palette=None,
                  gt_seg_map_loader_cfg=None,
                  att_metrics=None):
+        print(pipeline)
         self.pipeline = Compose(pipeline)
         self.img_dir = img_dir
         self.img_suffix = img_suffix
@@ -219,6 +220,7 @@ class CustomDataset(Dataset):
         ann_info = self.get_ann_info(idx)
         results = dict(img_info=img_info, ann_info=ann_info)
         self.pre_pipeline(results)
+        print(self.pipeline)
         return self.pipeline(results)
 
     def prepare_test_img(self, idx):
@@ -359,7 +361,7 @@ class CustomDataset(Dataset):
 
     def evaluate(self,
                  results,
-                 metric='mIoU',
+                 metric=['mIoU', 'mFscore','mFpr','mFnr'],
                  logger=None,
                  gt_seg_maps=None,
                  **kwargs):
@@ -379,9 +381,11 @@ class CustomDataset(Dataset):
         Returns:
             dict[str, float]: Default metrics.
         """
+        #print('metric')
+        #print(metric)
         if isinstance(metric, str):
             metric = [metric]
-        allowed_metrics = ['mIoU', 'mDice', 'mFscore']
+        allowed_metrics = ['mIoU', 'mDice', 'mFscore','mFpr','mFnr']
         if not set(metric).issubset(set(allowed_metrics)):
             raise KeyError('metric {} is not supported'.format(metric))
 
@@ -392,6 +396,8 @@ class CustomDataset(Dataset):
             if gt_seg_maps is None:
                 gt_seg_maps = self.get_gt_seg_maps()
             num_classes = len(self.CLASSES)
+            #print('num_classes')
+            #print(num_classes)
             ret_metrics = eval_metrics(
                 results,
                 gt_seg_maps,
@@ -403,7 +409,7 @@ class CustomDataset(Dataset):
         # test a list of pre_eval_results
         else:
             ret_metrics = pre_eval_to_metrics(results, metric)
-
+        #print(ret_metrics)
         # Because dataset.CLASSES is required for per-eval.
         if self.CLASSES is None:
             class_names = tuple(range(num_classes))
@@ -437,6 +443,9 @@ class CustomDataset(Dataset):
             else:
                 summary_table_data.add_column('m' + key, [val])
         if self.att_metrics is not None:
+            num_classes = len(self.CLASSES)
+            if gt_seg_maps is None:
+                gt_seg_maps = self.get_gt_seg_maps()
             attach_metrics = eval_attach_metrics(
                 results,
                 gt_seg_maps,

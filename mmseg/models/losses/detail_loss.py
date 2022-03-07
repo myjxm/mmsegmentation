@@ -51,6 +51,8 @@ class DetailAggregateLoss(nn.Module):
 
     def forward(self, boundary_logits, gtmasks):
 
+        self.laplacian_kernel = self.laplacian_kernel.to(gtmasks.get_device())
+
         # boundary_logits = boundary_logits.unsqueeze(1)
         boundary_targets = F.conv2d(gtmasks.unsqueeze(1).type(torch.cuda.FloatTensor), self.laplacian_kernel, padding=1)
         boundary_targets = boundary_targets.clamp(min=0)

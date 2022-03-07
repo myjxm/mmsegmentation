@@ -94,8 +94,8 @@ class FCNHeadPlus(BaseDecodeHead):
             output = self.conv_cat(torch.cat([x, output], dim=1))
         if self.c1_bottleneck is not None:
             c1_output = self.c1_bottleneck(inputs[0])
-            print("resnet layer1 output")
-            print(c1_output.shape[2:])
+            #print("resnet layer1 output")
+            #print(c1_output.shape[2:])
             output = resize(
                 input=output,
                 size=c1_output.shape[2:],

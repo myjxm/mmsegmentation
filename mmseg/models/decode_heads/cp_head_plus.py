@@ -216,12 +216,12 @@ class CPHeadPlus(BaseDecodeHead):
 
         cp_outs = torch.cat([x, intra_context, inter_context], dim=1)
 
-        print("cpnet cpouts output")
-        print(cp_outs.shape[2:])
+        #print("cpnet cpouts output")
+        #print(cp_outs.shape[2:])
         if self.c1_bottleneck is not None:
             c1_output = self.c1_bottleneck(inputs[0])
-            print("resnet layer1 output")
-            print(c1_output.shape[2:])
+            #print("resnet layer1 output")
+            #print(c1_output.shape[2:])
             output = resize(
                 input=cp_outs,
                 size=c1_output.shape[2:],
@@ -230,8 +230,8 @@ class CPHeadPlus(BaseDecodeHead):
             output = torch.cat([output, c1_output], dim=1)
         output = self.bottleneck(output)
         output = self.cls_seg(output)
-        print("cpnet output")
-        print(output.shape[2:])
+        #print("cpnet output")
+        #print(output.shape[2:])
         return output, context_prior_map
 
     def forward_test(self, inputs, img_metas, test_cfg):

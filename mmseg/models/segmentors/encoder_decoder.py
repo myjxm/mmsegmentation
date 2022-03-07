@@ -251,10 +251,25 @@ class EncoderDecoder(BaseSegmentor):
 
         return output
 
-    def simple_test(self, img, img_meta, rescale=True):
+    def simple_test(self, img, img_meta, rescale=True, roc=-1):
         """Simple test with single image."""
         seg_logit = self.inference(img, img_meta, rescale)
+        #print('simple_test_logit_before')
+        #print(seg_logit)
+        if roc > 0:
+            seg_logit[0][1][seg_logit[0][1] >= roc] = 1
+            seg_logit[0][1][seg_logit[0][1] < roc] = 0
         seg_pred = seg_logit.argmax(dim=1)
+
+        #print('simple_test_seg_logit')
+        # test04 = seg_logit.clone()
+        # test04[0][1][test04[0][1] > 0] = 1
+        #print(seg_logit)
+        # print(test04.shape)
+        # test04_pred = test04.argmax(dim=1)
+        #print('simple_test_seg_pred')
+        #print(seg_pred)
+        # print(test04_pred.shape)
         if torch.onnx.is_in_onnx_export():
             # our inference backend only support 4D output
             seg_pred = seg_pred.unsqueeze(0)
@@ -272,6 +287,8 @@ class EncoderDecoder(BaseSegmentor):
         # aug_test rescale all imgs back to ori_shape for now
         assert rescale
         # to save memory, we get augmented seg logit inplace
+        print('aug_test')
+        print(imgs)
         seg_logit = self.inference(imgs[0], img_metas[0], rescale)
         for i in range(1, len(imgs)):
             cur_seg_logit = self.inference(imgs[i], img_metas[i], rescale)

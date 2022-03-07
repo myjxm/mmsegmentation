@@ -12,6 +12,52 @@ from ..builder import HEADS, build_loss
 from ..utils import SelfAttentionBlock as _SelfAttentionBlock
 from .decode_head import BaseDecodeHead
 #from .bn import InPlaceABNSync as BatchNorm2d
+from mmcv.runner import BaseModule
+
+class AttentionRefinementModule(BaseModule):
+    """Attention Refinement Module (ARM) to refine the features of each stage.
+
+    Args:
+        in_channels (int): The number of input channels.
+        out_channels (int): The number of output channels.
+    Returns:
+        x_out (torch.Tensor): Feature map of Attention Refinement Module.
+    """
+
+    def __init__(self,
+                 in_channels,
+                 out_channel,
+                 conv_cfg=None,
+                 norm_cfg=dict(type='BN'),
+                 act_cfg=dict(type='ReLU'),
+                 init_cfg=None):
+        super(AttentionRefinementModule, self).__init__(init_cfg=init_cfg)
+        self.conv_layer = ConvModule(
+            in_channels=in_channels,
+            out_channels=out_channel,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            conv_cfg=conv_cfg,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.atten_conv_layer = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            ConvModule(
+                in_channels=out_channel,
+                out_channels=out_channel,
+                kernel_size=1,
+                bias=False,
+                conv_cfg=conv_cfg,
+                norm_cfg=norm_cfg,
+                act_cfg=None), nn.Sigmoid())
+
+    def forward(self, x):
+        x = self.conv_layer(x)
+        x_atten = self.atten_conv_layer(x)
+        x_out = x * x_atten
+        return x_out
+
 
 class AggregationModule(nn.Module):
     """Aggregation Module"""
@@ -186,6 +232,7 @@ class CPHeadPlus_V2(BaseDecodeHead):
                  c1_channels=0,
                  detail_index=1,
                  detail_channels=24,
+                 arm_channels=-1,
                  **kwargs):
         super(CPHeadPlus_V2, self).__init__(**kwargs)
         self.prior_channels = prior_channels
@@ -193,6 +240,15 @@ class CPHeadPlus_V2(BaseDecodeHead):
         self.am_kernel_size = am_kernel_size
         self.detail_index = detail_index
         self.detail_channels = detail_channels
+        self.arm_channels = arm_channels
+        if self.arm_channels <0:
+            self.bottle_channels=self.in_channels
+            self.arm_conv = None
+        else:
+            self.bottle_channels=arm_channels
+            self.arm_conv = AttentionRefinementModule(self.in_channels, arm_channels)
+
+
 
         self.aggregation = AggregationModule(self.in_channels, prior_channels,
                                              am_kernel_size,
@@ -235,7 +291,7 @@ class CPHeadPlus_V2(BaseDecodeHead):
             act_cfg=self.act_cfg)
 
         self.bottleneck = ConvModule(
-            self.in_channels + self.prior_channels * 2 + c1_channels + c0_channels,
+            self.bottle_channels + self.prior_channels * 2 + c1_channels + c0_channels,
             self.channels,
             3,
             padding=1,
@@ -315,28 +371,30 @@ class CPHeadPlus_V2(BaseDecodeHead):
         #print("print inter and intra size")
         #print(inter_context.size())
         #print(intra_context.size())
-
+        if self.arm_conv is not None:
+            x = self.arm_conv(x)
 
 
         cp_outs = torch.cat([x, intra_context, inter_context], dim=1)
 
-        print("cpnet cpouts output")
-        print(cp_outs.shape[2:])
+        #print("cpnet cpouts output")
+        #print(cp_outs.shape[2:])
         output = cp_outs
         if self.c1_bottleneck is not None:
-            c1_output = self.c1_bottleneck(inputs[6])
-            print("resnet layer6 output")
-            print(c1_output.shape[2:])
-            output = resize(
-                input=c1_output,
-                size=cp_outs.shape[2:],
-                mode='bilinear',
-                align_corners=self.align_corners)
-            output = torch.cat([cp_outs,output], dim=1)
+            #c1_output = self.c1_bottleneck(inputs[6])
+            c1_output = inputs[6]
+            #print("resnet layer6 output")
+            #print(c1_output.shape[2:])
+            #output = resize(
+            #    input=c1_output,
+            #    size=cp_outs.shape[2:],
+            #    mode='bilinear',
+            #    align_corners=self.align_corners)
+            output = torch.cat([c1_output,cp_outs], dim=1)
         if self.c0_bottleneck is not None:
             c0_output = self.c0_bottleneck(inputs[self.detail_index])
-            print("resnet layer1 output")
-            print(c0_output.shape[2:])
+            #print("resnet layer1 output")
+            #print(c0_output.shape[2:])
             output = resize(
                 input=output,
                 size=c0_output.shape[2:],
@@ -350,8 +408,8 @@ class CPHeadPlus_V2(BaseDecodeHead):
             detail_loss_output = self.conv_out_detail(detail_loss_output)
         else:
             detail_loss_output = None
-        print("cpnet output")
-        print(output.shape[2:])
+        #print("cpnet output")
+        #print(output.shape[2:])
         return output, context_prior_map, detail_loss_output
 
     def forward_test(self, inputs, img_metas, test_cfg):

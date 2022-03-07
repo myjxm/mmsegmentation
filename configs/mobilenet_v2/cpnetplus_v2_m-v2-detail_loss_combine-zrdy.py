@@ -31,12 +31,13 @@ model = dict(
         align_corners=False,
         c0_in_channels=24,
         c0_channels=24,  # decode对第一层降维后的通道数
-        c1_in_channels=-1,
-        c1_channels=0, #decode对最后层降维后的通道数
+        c1_in_channels=-1, #最后一层拼接cpnet输出，若取消输入-1
+        c1_channels=0, #decode对最后层降维后的通道数，最后一层拼接cpnet输出，若取消输入-1
         detail_index=1,
         detail_channels=24,
+        arm_channels=-1,#不使用输入小于0的值
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0, alpha=1, gamma=2),
+            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0, alpha=1, gamma=0,use_pixel_weight=True),
         loss_prior_decode=dict(type='AffinityLoss', loss_weight=1.0),
         loss_detail_loss=dict(type='DetailAggregateLoss', loss_weight=1.0),
     ),
