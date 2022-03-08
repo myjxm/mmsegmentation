@@ -44,7 +44,7 @@ def pixel_cross_entropy(pred,
     a = np.array(a)
     b = np.array(b)
     #res = 1+ np.exp(-np.square(w)/(np.square(g)*2))/np.sqrt(2*math.pi)
-    res = np.array([1 + np.exp(-np.square(w[i]) / (np.square(g[i]) * 2 + 1)) / np.sqrt(2 * math.pi) for i in range(batch_num)])
+    res = np.array([1 + np.exp(-np.square(w[i]) / (np.square(g[i]) * 2 + 1)) / (2*np.sqrt(2 * math.pi)) for i in range(batch_num)])
     res = res*a +b
     loss = F.cross_entropy(
         pred,

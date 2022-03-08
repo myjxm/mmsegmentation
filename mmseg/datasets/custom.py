@@ -90,7 +90,7 @@ class CustomDataset(Dataset):
                  palette=None,
                  gt_seg_map_loader_cfg=None,
                  att_metrics=None):
-        print(pipeline)
+        #print(pipeline)
         self.pipeline = Compose(pipeline)
         self.img_dir = img_dir
         self.img_suffix = img_suffix
@@ -220,7 +220,7 @@ class CustomDataset(Dataset):
         ann_info = self.get_ann_info(idx)
         results = dict(img_info=img_info, ann_info=ann_info)
         self.pre_pipeline(results)
-        print(self.pipeline)
+        #print(self.pipeline)
         return self.pipeline(results)
 
     def prepare_test_img(self, idx):
