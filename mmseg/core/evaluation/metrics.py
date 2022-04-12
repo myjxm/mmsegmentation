@@ -302,7 +302,7 @@ def eval_attach_metrics(results,
             #print(np.square(y-ygt).sum(1))
             #print(np.sqrt(np.square(y-ygt).sum(1)))
             #aa = y-ygt
-            att_metrics['Grmse'] = (np.sqrt(np.square(y-ygt).sum(1))/(width)).sum()/imagesnum
+            att_metrics['Grmse'] = (np.sqrt(np.square(y-ygt).sum(1)/(width))).sum()/imagesnum
             #print(att_metrics)
             #print(type(att_metrics['Grmse']))
         if metric == 'Gmax':

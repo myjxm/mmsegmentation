@@ -36,8 +36,8 @@ def evaluate(results,
              reduce_zero_label=False,
              class_names=['other','water'],
              #att_metrics = ['PRE','REC','F-measure','F-max','FPR','FNR'],
-             #att_metrics = ['Grmse','Gmax'],
-             att_metrics = None,
+             att_metrics = ['Grmse','Gmax'],
+             #att_metrics = None,
              efficient_test=False,
              **kwargs):
     """Evaluate the dataset.
@@ -181,28 +181,38 @@ def main():
         if res['data'][0]['metric_status'] == 'Y':
            return
     print(res)
-    url = r"http://localhost:8080/init_insert/statistic_two_class/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
+    url = r"http://localhost:8080/init_insert/statistic_class/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
     res = requests.get(url)
     print(json.loads(res.text))
     seg_list=[]
     test_list=[]
+    classes = 2;
     for file_path  in os.listdir(args.seg_path):
         if os.path.isfile(os.path.join(args.seg_path, file_path)) == True:
             seg_file = os.path.join(args.seg_path, file_path)
             test_file = os.path.join(args.test_path, file_path)
             seg = io.imread(seg_file)
             test = io.imread(test_file)
+            if len(np.unique(seg))> classes:
+                classes = len(np.unique(test))
             if seg.shape == test.shape:
                test_list.append(test)
                seg_list.append(seg)
-    eval_results=evaluate(test_list,seg_list)
+    if classes > 2:
+        eval_results = evaluate(test_list, seg_list, num_classes=3, class_names=['other','water','sky'])
+    else:
+        eval_results = evaluate(test_list, seg_list, num_classes=2, class_names=['other', 'water'])
     eval_results['modelname'] = args.modelname
     eval_results['roc'] = args.roc
     eval_results['dataset'] = args.dataset
-    url = r"http://localhost:8080/update/statistic_two_class/"
+    if classes > 2:
+        url = r"http://localhost:8080/update/statistic_three_class/"
+    else:
+        url = r"http://localhost:8080/update/statistic_two_class/"
     headers = {'content-type': 'application/json'}
     #requests.post(url, json=json.dumps(eval_results),headers=headers)
     res = requests.post(url, json=eval_results)
+    #print(res)
     print(json.loads(res.text))
     url = r"http://localhost:8080/update/statistic_status/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
     res = requests.get(url)

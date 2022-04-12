@@ -382,10 +382,11 @@ class CustomDataset(Dataset):
             dict[str, float]: Default metrics.
         """
         #print('metric')
+        #print('metric')
         #print(metric)
         if isinstance(metric, str):
             metric = [metric]
-        allowed_metrics = ['mIoU', 'mDice', 'mFscore','mFpr','mFnr']
+        allowed_metrics = ['mIoU', 'mDice', 'mFscore','mFpr','mFnr','kappa','mcc','hloss']
         if not set(metric).issubset(set(allowed_metrics)):
             raise KeyError('metric {} is not supported'.format(metric))
 

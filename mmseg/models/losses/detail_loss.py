@@ -39,15 +39,19 @@ def get_boundary(gtmasks):
 
 @LOSSES.register_module()
 class DetailAggregateLoss(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, use_x8=False, only_x1=False,*args, **kwargs):
         super(DetailAggregateLoss, self).__init__()
-        
+        self.use_x8 = use_x8;
+        self.only_x1 = only_x1
         self.laplacian_kernel = torch.tensor(
             [-1, -1, -1, -1, 8, -1, -1, -1, -1],
             dtype=torch.float32).reshape(1, 1, 3, 3).requires_grad_(False).type(torch.cuda.FloatTensor)
-        
-        self.fuse_kernel = torch.nn.Parameter(torch.tensor([[6./10], [3./10], [1./10]],
-            dtype=torch.float32).reshape(1, 3, 1, 1).type(torch.cuda.FloatTensor))
+        if self.only_x1 is True:
+            self.fuse_kernel = torch.nn.Parameter(torch.tensor([[10./10]], dtype=torch.float32).reshape(1, 1, 1, 1).type(torch.cuda.FloatTensor))
+        elif self.use_x8 is False:
+            self.fuse_kernel = torch.nn.Parameter(torch.tensor([[6./10], [3./10], [1./10]], dtype=torch.float32).reshape(1, 3, 1, 1).type(torch.cuda.FloatTensor))
+        else:
+            self.fuse_kernel = torch.nn.Parameter(torch.tensor([[5. / 10], [2.5 / 10], [1.5 / 10], [1. / 10]], dtype=torch.float32).reshape(1, 4, 1, 1).type(torch.cuda.FloatTensor))
 
     def forward(self, boundary_logits, gtmasks):
 
@@ -82,8 +86,12 @@ class DetailAggregateLoss(nn.Module):
         
         boundary_targets_x8_up[boundary_targets_x8_up > 0.1] = 1
         boundary_targets_x8_up[boundary_targets_x8_up <= 0.1] = 0
-        
-        boudary_targets_pyramids = torch.stack((boundary_targets, boundary_targets_x2_up, boundary_targets_x4_up), dim=1)
+        if self.only_x1 is True:
+            boudary_targets_pyramids = boundary_targets
+        elif self.use_x8 is False:
+            boudary_targets_pyramids = torch.stack((boundary_targets, boundary_targets_x2_up, boundary_targets_x4_up), dim=1)
+        else:
+            boudary_targets_pyramids = torch.stack((boundary_targets, boundary_targets_x2_up, boundary_targets_x4_up, boundary_targets_x8_up), dim=1)
         
         boudary_targets_pyramids = boudary_targets_pyramids.squeeze(2)
         boudary_targets_pyramid = F.conv2d(boudary_targets_pyramids, self.fuse_kernel)

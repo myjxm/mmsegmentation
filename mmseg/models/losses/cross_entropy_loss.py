@@ -21,7 +21,9 @@ def pixel_cross_entropy(pred,
                   avg_factor=None,
                   ignore_index=-100,
                   alpha=1,
-                  gamma=0):
+                  gamma=0,
+                  pa=1,
+                  only_block=True):
     """The wrapper function for :func:`F.cross_entropy`"""
     # class_weight is a manual rescaling weight given to each class.
     # If given, has to be a Tensor of size C element-wise losses
@@ -34,18 +36,44 @@ def pixel_cross_entropy(pred,
     w=[np.array([colidx-subdiclab[i] for i in range(width)]).T for subdiclab in diclab]
     g=[np.array([heigh-subdiclab[i] for i in range(width)])/8 for subdiclab in diclab]
     a=copy.deepcopy(w)
+    ###onlyblock set
     for suba in a:
-        suba[suba>=0]=1
-        suba[suba<0]=0
-    b=copy.deepcopy(w)
+        suba[suba>=0]=0
+        suba[suba<0]=-10000
+    #b=copy.deepcopy(w)
+    b = label.cpu().numpy() - a   #b 水下障碍物为1 其他为0
     for subb in b:
-        subb[subb>=0]=0
-        subb[subb<0]=1
+        subb[subb == 0] = 2022
+        subb[subb != 2022] = 0
+        subb[subb == 2022] = 1
+    c = copy.deepcopy(b)  #c 水下障碍物为0 其他为1
+    for subc in c:
+        subc[subc == 0] = 2022
+        subc[subc == 1] = 0
+        subc[subc == 2022] = 1
+    #full water set
+    d = copy.deepcopy(w)
+    for subd in d:
+        subd[subd >= 0] = 1
+        subd[subd < 0] = 0
+    e = copy.deepcopy(w)
+    for sube in e:
+        sube[sube >= 0] = 0
+        sube[sube < 0] = 1
+
     a = np.array(a)
     b = np.array(b)
+    c = np.array(c)
+    d = np.array(d)
+    e = np.array(e)
+
     #res = 1+ np.exp(-np.square(w)/(np.square(g)*2))/np.sqrt(2*math.pi)
-    res = np.array([1 + np.exp(-np.square(w[i]) / (np.square(g[i]) * 2 + 1)) / (2*np.sqrt(2 * math.pi)) for i in range(batch_num)])
-    res = res*a +b
+    res = np.array([1 + np.exp(-np.square(w[i]) / (np.square(g[i]) * 2 + 1)) / (pa*np.sqrt(2 * math.pi)) for i in range(batch_num)])  #wio 水中的非水障碍物
+    #res1 = np.array([1 + w[i]/(1+w[i]) for i in range(batch_num)])  #wis 水中的天空
+    if only_block:
+        res = res*b + c
+    else:
+        res = res*d + e
     loss = F.cross_entropy(
         pred,
         label,
@@ -79,7 +107,9 @@ def cross_entropy(pred,
                   avg_factor=None,
                   ignore_index=-100,
                   alpha=1,
-                  gamma=0):
+                  gamma=0,
+                  pa=1,
+                  only_block=True):
     """The wrapper function for :func:`F.cross_entropy`"""
     # class_weight is a manual rescaling weight given to each class.
 
@@ -131,7 +161,9 @@ def binary_cross_entropy(pred,
                          class_weight=None,
                          ignore_index=255,
                          alpha=1,
-                         gamma=0
+                         gamma=0,
+                         pa=1,
+                         only_block=True
                          ):
     """Calculate the binary CrossEntropy loss.
 
@@ -177,7 +209,9 @@ def mask_cross_entropy(pred,
                        class_weight=None,
                        ignore_index=None,
                        alpha=1,
-                       gamma=0):
+                       gamma=0,
+                       pa=1,
+                       only_block=True):
     """Calculate the CrossEntropy loss for masks.
 
     Args:
@@ -238,6 +272,8 @@ class CrossEntropyLoss(nn.Module):
                  alpha=1,
                  gamma=0,
                  use_pixel_weight=False,
+                 pa=1,
+                 only_block=True
                  ):
         super(CrossEntropyLoss, self).__init__()
         assert (use_sigmoid is False) or (use_mask is False)
@@ -249,6 +285,8 @@ class CrossEntropyLoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
         self.use_pixel_weight = use_pixel_weight
+        self.pa = pa
+        self.only_block = only_block
 
         if self.use_sigmoid:
             self.cls_criterion = binary_cross_entropy
@@ -284,6 +322,8 @@ class CrossEntropyLoss(nn.Module):
             avg_factor=avg_factor,
             alpha=self.alpha,
             gamma=self.gamma,
+            pa=self.pa,
+            only_block=self.only_block,
             **kwargs)
         return loss_cls
 

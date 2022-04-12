@@ -14,7 +14,11 @@ def parse_args():
     parser.add_argument("--output-path", type=str,
                         help="Where to save predicted mask.")
     parser.add_argument("--save-path", type=str,
-                        help="Where to save predicted color mask.")                    
+                        help="Where to save predicted color mask.")
+    parser.add_argument("--config-file", type=str, default =None,
+                        help="model config file")
+    parser.add_argument("--checkpoint-file", type=str, default=None,
+                        help="model checkpoint file")
     return parser.parse_args()
     
     
@@ -28,8 +32,14 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+
     config_file = '/home/zrd/mmsegmentation-master/configs/pspnet/pspnet_r50-d8_512x512_160k_combine-zrdy.py'
     checkpoint_file = '/home/zrd/mmsegmentation-master/work_dirs/pspnet_r50-d8_combine-zrdy/latest.pth'
+    if args.config_file is not None:
+        config_file = args.config_file;
+    if args.checkpoint_file is not None:
+        checkpoint_file = args.checkpoint_file;
     model = init_segmentor(config_file, checkpoint_file, device='cuda:1')
     path = args.img_path
     output_path = args.output_path
@@ -44,7 +54,10 @@ def main():
             seg = io.imread(seg_file)
             seg = np.expand_dims(seg, axis=0)
             if img.shape[:2] == seg.shape[1:3]:
-                model.show_result(img, seg, palette=[[0, 0, 0], [128, 0, 0]],out_file=os.path.join(save_path, file_path.replace('jpg','png')),save_annotation=False)
+                model.show_result(img, seg, palette=model.PALETTE,
+                                  out_file=os.path.join(save_path, file_path.replace('jpg', 'png')),
+                                  save_annotation=False)
+                #model.show_result(img, seg, palette=[[0, 0, 0], [128, 0, 0], [128,128,0] ],out_file=os.path.join(save_path, file_path.replace('jpg','png')),save_annotation=False)
 
 if __name__ == '__main__':
     main()

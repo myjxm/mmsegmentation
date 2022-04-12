@@ -89,6 +89,7 @@ def main():
     args = parse_args()
     url = r"http://localhost:8080/query/statistic_status/" + args.modelname + "/" + str(args.roc) + "/" + str(args.dataset)
     res = requests.get(url)
+    print(res)
     res = json.loads(res.text)
     print(res)
     if res['code'] == 0 and len(res['data']) > 0:
@@ -114,7 +115,7 @@ def main():
             'FLOPs counter is currently not currently supported with {}'.
             format(model.__class__.__name__))
     #input_shape=(3,flopsimg.shape[0],flopsimg.shape[1])
-    input_shape = (3, 512,512)
+    input_shape = (3, 512, 512)
     flops, params = get_model_complexity_info(model, input_shape)
     split_line = '=' * 30
     print('{0}\nInput shape: {1}\nFlops: {2}\nParams: {3}\n{0}'.format(
@@ -133,7 +134,9 @@ def main():
         if os.path.isfile(os.path.join(path, file_path)) == True:
            img = os.path.join(path, file_path)
            result = inference_segmentor(model, img, roc)
-           model.show_result(img, result, palette=[[0, 0, 0], [128, 0, 0]],out_file=os.path.join(output_path, file_path.replace('jpg','png')),save_annotation=True)
+           model.show_result(img, result, palette=model.PALETTE,
+                             out_file=os.path.join(output_path, file_path.replace('jpg', 'png')), save_annotation=True)
+           #model.show_result(img, result, palette=[[0, 0, 0], [128, 0, 0], [128, 128, 0]],out_file=os.path.join(output_path, file_path.replace('jpg','png')),save_annotation=True)
            count = count + 1
     end_time=datetime.datetime.now()
     print('endtime: '+ str(end_time))

@@ -15,12 +15,14 @@ from .stare import STAREDataset
 from .voc import PascalVOCDataset
 from .mastr1325 import MaSTr1325
 from .combine import Combine
-
+from .zhuhai15708 import Zhuhai15708
+from .zhuhai15708_3class import Zhuhai15708_3class
+from .zhuhai12749_3class import Zhuhai12749_3class
 __all__ = [
     'CustomDataset', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
     'DATASETS', 'build_dataset', 'PIPELINES', 'CityscapesDataset',
     'PascalVOCDataset', 'ADE20KDataset', 'PascalContextDataset',
     'PascalContextDataset59', 'ChaseDB1Dataset', 'DRIVEDataset', 'HRFDataset',
     'STAREDataset', 'DarkZurichDataset', 'NightDrivingDataset',
-    'COCOStuffDataset','MaSTr1325','Combine'
+    'COCOStuffDataset','MaSTr1325','Combine','Zhuhai15708','Zhuhai15708_3class','Zhuhai12749_3class'
 ]

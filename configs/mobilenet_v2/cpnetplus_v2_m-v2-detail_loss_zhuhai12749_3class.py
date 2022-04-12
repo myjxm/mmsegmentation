@@ -1,6 +1,6 @@
 # model settings
 _base_ = [
-    '../_base_/datasets/zhuhai15708.py', '../_base_/default_runtime.py',
+    '../_base_/datasets/zhuhai12749_3class.py', '../_base_/default_runtime.py',
     '../_base_/schedules/schedule_160k.py'
 ]
 #norm_cfg = dict(type='SyncBN', requires_grad=True)
@@ -26,7 +26,7 @@ model = dict(
         aggress_dilation=2,
         groups=1,
 #        drop_out_ratio=0.1,
-        num_classes=2,
+        num_classes=3,
         norm_cfg=norm_cfg,
         align_corners=False,
         c0_in_channels=24,
@@ -37,9 +37,9 @@ model = dict(
         detail_channels=24,
         arm_channels=-1,#不使用输入小于0的值
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0, alpha=1, gamma=0,use_pixel_weight=False,pa=2,only_block=False),
+            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0, alpha=1, gamma=0,use_pixel_weight=True,pa=2,only_block=True),
         loss_prior_decode=dict(type='AffinityLoss', loss_weight=1.0),
-        loss_detail_loss=dict(type='DetailAggregateLoss', loss_weight=1.0,use_x8=False),
+        loss_detail_loss=dict(type='DetailAggregateLoss', loss_weight=1.0, use_x8=True,only_x1=True),
     ),
     auxiliary_head=dict(
         type='FCNHead',
@@ -49,7 +49,7 @@ model = dict(
         num_convs=1,
         concat_input=False,
 #        drop_out_ratio=0.1,
-        num_classes=2,
+        num_classes=3,
         norm_cfg=norm_cfg,
         align_corners=False,
         loss_decode=dict(
