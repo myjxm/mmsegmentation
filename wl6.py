@@ -53,9 +53,17 @@ def main():
 		#model = load_model(args.dataset_path,custom_objects={'dice_coef': dice_coef})
 		model_class = Models()
 		input_shape = (160, 160, 3)
-		nb_classes = 2
+		if args.dataset == 'zhuhai12749_3class_image' or args.dataset == 'zhuhai433_3class_image' or args.dataset == 'zhuhai480_3class_image' or args.dataset == 'zhuhai500_3class_image' or args.dataset == 'zhuhai15708_3class_image' or args.dataset == 'MaSTr1325_images_512x384':
+		   nb_classes = 3
+		elif args.dataset == 'combine_zrdy' :
+		   nb_classes = 2
+		else:
+			raise NotImplementedError(
+				"This repository now supports datasets %s is not included" % args.dataset)
 		metrics = ['binary_crossentropy', 'mse', 'mae', dice_coef]
 		#model = model_class.get_unet_model_8(input_shape, nb_classes, dice_coef_loss, metrics)
+		print("nb_classes")
+		print(nb_classes)
 		model = model_class.get_unet_model_6(input_shape, nb_classes, dice_coef_loss, metrics)
 		model.load_weights(args.model_weights)
 		print('wl6 flops MACs = 2 * FLOPs')
@@ -84,23 +92,26 @@ def main():
 				rgb_convert = cv2.resize(rgb,(160,160))
 				rgb_convert = rgb_convert/255.0
 				x = np.expand_dims(rgb_convert, axis=0)
+				#x = rgb_convert
+				print('x')
+				print(x.shape)
 				y=model.predict(x)
-				#print('y')
-				#print(y.shape)
-				#print(y)
+				print('y')
+				print(y.shape)
+				print(y)
 				y_out = y.squeeze()
-				#print('y_out')
-				#print(y_out.shape)
-				#print(y_out)
+				print('y_out')
+				print(y_out.shape)
+				print(y_out)
 				y_output = cv2.resize(y_out,(rgb.shape[1],rgb.shape[0]))
-				#print('y_output')
-				#print(y_output.shape)
-				#print(y_output)
+				print('y_output')
+				print(y_output.shape)
+				print(y_output)
 				if args.roc >= 0:
 					y_output[y_output >= args.roc] = 1
 					y_output[y_output < args.roc] = 0
-				#print(y_output)
-				cv2.imwrite(args.save_dir + file_path.replace('jpg','png'), y_output)
+				print(y_output)
+				cv2.imwrite(args.save_dir + file_path.replace('jpg','png'), y_output)  #imwrite写入的时候按照会有一个四舍五入的过程， 并且有saturation的过程。小于0置为0，大于255置于255。
 				count = count + 1
 		end_time=datetime.datetime.now()
 		#print(args.save_dir + ' spendtime(ms) :' + str((end_time-start_time).seconds/count))

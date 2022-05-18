@@ -4,4 +4,4 @@ _base_ = [
 ]
 norm_cfg = dict(type='BN',requires_grad=True)
 model = dict(
-    decode_head=dict(num_classes=2), auxiliary_head=dict(num_classes=3))
+    decode_head=dict(num_classes=3), auxiliary_head=dict(num_classes=3))

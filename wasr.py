@@ -27,10 +27,10 @@ import requests
 import json
 
 # COLOR MEANS OF IMAGES FROM MODDv1 DATASET
-IMG_MEAN = np.array((148.8430, 171.0260, 162.4082), dtype=np.float32)
-
+#IMG_MEAN = np.array((148.8430, 171.0260, 162.4082), dtype=np.float32)
+IMG_MEAN = np.array((123.675, 116.28, 103.53), dtype=np.float32)
 # Number of classes
-NUM_CLASSES = 2
+NUM_CLASSES = 3
 
 # Output dir, where segemntation mask is saved
 SAVE_DIR = 'output/'  # save directory
@@ -39,10 +39,11 @@ SAVE_DIR = 'output/'  # save directory
 DATASET_PATH = 'test_images/'
 
 # Path to trained weights
-MODEL_WEIGHTS = '/home/zrd/wasr_network-master/weights_models/snapshots_wasr_noimu/arm8imu3_noimu.ckpt-18000'
-
+MODEL_WEIGHTS = '/home/zrd/wasr_network-master/weights_models/snapshots_wasr_noimu_zhuhai12749_3class_oldwasr_newmean/arm8imu3_noimu.ckpt-600'
+#MODEL_WEIGHTS = '/home/zrd/wasr_network-master/example_weights/arm8imu3_noimu.ckpt-80000'
 # Input image size. Our network expects images of resolution 512x384
-IMG_SIZE = [384, 512]
+#IMG_SIZE = [384, 512]
+IMG_SIZE = [1080,1920]
 
 
 def get_arguments():
@@ -180,8 +181,9 @@ def main():
             img_in = cv2.resize(img_org, (512, 384), interpolation=cv2.INTER_LINEAR)
             # Run inference
             preds = sess.run(pred, feed_dict={img_input: img_in})
-            #print('preds after run')
-            #print(preds.shape)
+            print('preds after run')
+            print(preds.shape)
+            print(preds)
             #print(type(preds))
             if args.roc >0:
                preds[:,:,:,1][preds[:,:,:,1] >= args.roc] = 1
@@ -189,10 +191,13 @@ def main():
             #print('preds after roc')
             #print((preds))
             preds = preds.argmax(axis=-1)
-            #print(preds.shape)
+            print('preds after argmax')
+            print(preds.shape)
+            print(preds)
             preds_squeeze = preds[0].squeeze().astype(np.uint8)
-            #print(preds_squeeze.shape)
-            #print(preds[0].shape)
+            print('preds after squeeze')
+            print(preds_squeeze.shape)
+            print(preds[0].shape)
             preds_out = cv2.resize(preds_squeeze, (img_org.shape[1], img_org.shape[0]), interpolation=cv2.INTER_LINEAR)
 
             # Decode segmentation mask
@@ -204,6 +209,7 @@ def main():
             #flops = tf.profiler.profile(tf.get_default_graph(), options=tf.profiler.ProfileOptionBuilder.float_operation())
             #print('FLOPs: {}'.format(flops.total_float_ops))
             #count_flops(tf.get_default_graph())
+            flops = 'no cal'
             if flops is None:
                 print('wasr flops MACs = 2 * FLOPs')
                 with tf.Session() as sesses:

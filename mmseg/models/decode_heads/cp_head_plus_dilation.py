@@ -302,6 +302,8 @@ class CPHeadPlus_V2(BaseDecodeHead):
         self.loss_prior_decode = build_loss(loss_prior_decode)
         if loss_detail_loss is not None:
            self.loss_detail_loss = build_loss(loss_detail_loss)
+        else :
+           self.loss_detail_loss = None
         if c0_in_channels > 0 :
             self.c0_bottleneck = ConvModule(
                 c0_in_channels,

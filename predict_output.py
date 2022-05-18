@@ -207,6 +207,8 @@ if __name__ == '__main__':
 
     if args.dataset == 'combine_zrdy':
         args.classes = 2
+    elif args.dataset == 'zhuhai12749_3class_image' or args.dataset == 'zhuhai433_3class_image' or args.dataset == 'zhuhai480_3class_image' or args.dataset == 'zhuhai500_3class_image' or args.dataset == 'zhuhai15708_3class_image' or args.dataset == 'MaSTr1325_images_512x384' :
+        args.classes = 3
     else:
         raise NotImplementedError(
             "This repository now supports datasets %s is not included" % args.dataset)

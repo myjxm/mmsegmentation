@@ -194,7 +194,7 @@ def main():
             seg = io.imread(seg_file)
             test = io.imread(test_file)
             if len(np.unique(seg))> classes:
-                classes = len(np.unique(test))
+                classes = len(np.unique(seg))
             if seg.shape == test.shape:
                test_list.append(test)
                seg_list.append(seg)
