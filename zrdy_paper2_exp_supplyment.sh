@@ -27,12 +27,20 @@ elif [ "$model" == "wl-largeBN_mobilenetv2_paper2" ]; then
 conda deactivate
 conda activate keras
 python /home/zrd/wl/wl8.py --dataset-path '/home/home2/zrd/data/val/validation-paper1/'$imagepath  --save-dir '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/' --model-weights /home/zrd/wl/models_saved/final_models/unet160--largeBN_mobilenetv2--dice_coef_loss --roc $j --modelname $model --dataset $imagepath
+elif [ "$model" == "wasr_pytorch_20" ];  then
+conda deactivate
+conda activate wasr_pytorch
+python /home/zrd/wasr-pytorch/wasr-pytorch-predict.py '/home/home2/zrd/data/val/validation-paper1/'$imagepath '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/'  --architecture wasr_resnet101 --weights /home/zrd/wasr-pytorch/output/logs/wasr_pytorch_zhuhai12749_3class/version_40/checkpoints/epoch20.ckpt --roc $j --modelname $model --dataset $imagepath
 elif [ "$model" == "wasr_paper2" ] || [ "$model" == "wasr_paper2_2800" ] || [ "$model" == "wasr_paper2_fine_3000" ] || [ "$model" == "wasr_paper2_fine_17900" ] || [ "$model" == "wasr_paper2_init_16000" ];  then
 conda deactivate
 conda activate wasr
 #conda activate wasr_new
 python /home/zrd/wasr_network-master/wasr_inference_noimu_batch.py --dataset-path '/home/home2/zrd/data/val/validation-paper1/'$imagepath --save-dir  '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/'
 #python /home/zrd/wasr_network-master/wasr.py --dataset-path '/home/home2/zrd/data/val/validation-paper1/'$imagepath --save-dir '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/' --roc $j --modelname $model --dataset $imagepath
+elif [ "$model" == "wodis" ]; then
+conda deactivate
+conda activate open-mmlab
+python /home/zrd/ASV_Image_Segmentation-main/WODIS/wodis_infer.py --config $config --load-from '/home/home2/zrd/project/mmsegmentation/work-dirs/'$model'/latest.pth' --image-path '/home/home2/zrd/data/val/validation-paper1/'$imagepath --output-path '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/' --roc $j --modelname $model --dataset $imagepath
 else
 conda deactivate
 conda activate open-mmlab
@@ -43,9 +51,10 @@ conda activate open-mmlab
 echo 'metrics for  '$model'roc: '$j
 python /home/home2/zrd/project/mmsegmentation/metrics_calculate.py --seg-path  '/home/home2/zrd/data/val/validation-paper1/'$segpath  --test-path '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/' --roc $j --modelname $model --dataset $imagepath  --roc $j --modelname $model --dataset $imagepath
 echo 'get_colour_img for '$model'roc: '$j
-if [ "$model" == "wasr_paper2" ] || [ "$model" == "wl-largeBN_mobilenetv2_paper2" ] || [ "$model" == "wl-largeBN_paper2" ] || [ "$model" == "segnet_paper2" ] || [ "$model" == "wasr_paper2_2800" ] || [ "$model" == "wasr_paper2_fine_3000" ] || [ "$model" == "wasr_paper2_fine_17900" ] || [ "$model" == "wasr_paper2_init_16000" ]; then
+if [ "$model" == "wasr_paper2" ] || [ "$model" == "wl-largeBN_mobilenetv2_paper2" ] || [ "$model" == "wl-largeBN_paper2" ] || [ "$model" == "segnet_paper2" ] || [ "$model" == "wasr_paper2_2800" ] || [ "$model" == "wasr_paper2_fine_3000" ] || [ "$model" == "wasr_paper2_fine_17900" ] || [ "$model" == "wasr_paper2_init_16000" ] || [ "$model" == "wodis" ] || [ "$model" == "wasr_pytorch_20" ];  then
 python /home/home2/zrd/project/mmsegmentation/get_colour_img.py --img-path '/home/home2/zrd/data/val/validation-paper1/'$imagepath  --output-path '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/'  --save-path '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'-col/'  --config-file $config --checkpoint-file  '/home/home2/zrd/project/mmsegmentation/work-dirs/deeplabv3plus_r50-d8_512x512_80k_zhuhai12749_3class/latest.pth'
 else
 python /home/home2/zrd/project/mmsegmentation/get_colour_img.py --img-path '/home/home2/zrd/data/val/validation-paper1/'$imagepath  --output-path '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'/'  --save-path '/home/home2/zrd/data/val/validation-paper1/'$model'-'$imagepath'-col/'  --config-file $config --checkpoint-file  '/home/home2/zrd/project/mmsegmentation/work-dirs/'$model'/latest.pth'
 fi
 done
+

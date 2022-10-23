@@ -94,6 +94,7 @@ def evaluate(results,
         else:
             summary_table_data.add_column('m' + key, [val])
     if att_metrics is not None:
+        #print(results)
         attach_metrics = eval_attach_metrics(
             results,
             gt_seg_maps,

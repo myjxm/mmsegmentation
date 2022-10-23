@@ -233,6 +233,9 @@ class CPHeadPlus_V2(BaseDecodeHead):
                  detail_index=1,
                  detail_channels=24,
                  arm_channels=-1,
+                 seg_head=False,
+                 concat_x=True,
+                 out_index = 4,
                  **kwargs):
         super(CPHeadPlus_V2, self).__init__(**kwargs)
         self.prior_channels = prior_channels
@@ -241,6 +244,14 @@ class CPHeadPlus_V2(BaseDecodeHead):
         self.detail_index = detail_index
         self.detail_channels = detail_channels
         self.arm_channels = arm_channels
+        self.seg_head=seg_head
+        self.groups = groups
+        self.concat_x = concat_x
+        self.out_index = out_index
+
+        self.seg_head_conv = ConvBNReLU(self.num_classes, self.num_classes, ks=3, stride=1, padding=1, groups=self.groups,
+                               conv_cfg=self.conv_cfg,
+                               norm_cfg=self.norm_cfg)
         if self.arm_channels <0:
             self.bottle_channels=self.in_channels
             self.arm_conv = None
@@ -289,15 +300,24 @@ class CPHeadPlus_V2(BaseDecodeHead):
             conv_cfg=self.conv_cfg,
             norm_cfg=self.norm_cfg,
             act_cfg=self.act_cfg)
-
-        self.bottleneck = ConvModule(
-            self.bottle_channels + self.prior_channels * 2 + c1_channels + c0_channels,
-            self.channels,
-            3,
-            padding=1,
-            conv_cfg=self.conv_cfg,
-            norm_cfg=self.norm_cfg,
-            act_cfg=self.act_cfg)
+        if self.concat_x:
+            self.bottleneck = ConvModule(
+                self.bottle_channels + self.prior_channels * 2 + c1_channels + c0_channels,
+                self.channels,
+                3,
+                padding=1,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=self.act_cfg)
+        else :
+            self.bottleneck = ConvModule(
+                self.prior_channels * 2 + c1_channels + c0_channels,
+                self.channels,
+                3,
+                padding=1,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=self.act_cfg)
 
         self.loss_prior_decode = build_loss(loss_prior_decode)
         if loss_detail_loss is not None:
@@ -376,23 +396,26 @@ class CPHeadPlus_V2(BaseDecodeHead):
         if self.arm_conv is not None:
             x = self.arm_conv(x)
 
+        if self.concat_x:
+           cp_outs = torch.cat([x, intra_context, inter_context], dim=1)
+        else:
+           cp_outs = torch.cat([intra_context, inter_context], dim=1)
 
-        cp_outs = torch.cat([x, intra_context, inter_context], dim=1)
 
         #print("cpnet cpouts output")
         #print(cp_outs.shape[2:])
         output = cp_outs
         if self.c1_bottleneck is not None:
-            #c1_output = self.c1_bottleneck(inputs[6])
-            c1_output = inputs[6]
+            c1_output = self.c1_bottleneck(inputs[self.out_index])
+            #c1_output = inputs[self.out_index]
             #print("resnet layer6 output")
             #print(c1_output.shape[2:])
-            #output = resize(
-            #    input=c1_output,
-            #    size=cp_outs.shape[2:],
-            #    mode='bilinear',
-            #    align_corners=self.align_corners)
-            output = torch.cat([c1_output,cp_outs], dim=1)
+            c1_output_resize = resize(
+                input=c1_output,
+                size=cp_outs.shape[2:],
+                mode='bilinear',
+                align_corners=self.align_corners)
+            output = torch.cat([c1_output_resize,cp_outs], dim=1)
         if self.c0_bottleneck is not None:
             c0_output = self.c0_bottleneck(inputs[self.detail_index])
             #print("resnet layer1 output")
@@ -438,6 +461,14 @@ class CPHeadPlus_V2(BaseDecodeHead):
         logit_size = seg_logit.shape[2:]
         logit_size = torch.Size([self.prior_size[0],self.prior_size[1]])
         loss = dict()
+        # if self.seg_head == True:
+        #     seg_logit = resize(
+        #         input=seg_logit,
+        #         size=seg_label.shape[2:],
+        #         mode='bilinear',
+        #         align_corners=self.align_corners)
+        #     seg_logit = self.seg_head_conv(seg_logit)
+
         loss.update(super(CPHeadPlus_V2, self).losses(seg_logit, seg_label))
         prior_loss = self.loss_prior_decode(
             context_prior_map,

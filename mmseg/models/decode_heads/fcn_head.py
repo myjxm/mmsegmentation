@@ -75,6 +75,7 @@ class FCNHead(BaseDecodeHead):
     def forward(self, inputs):
         """Forward function."""
         x = self._transform_inputs(inputs)
+        #print(x.shape)
         output = self.convs(x)
         if self.concat_input:
             output = self.conv_cat(torch.cat([x, output], dim=1))

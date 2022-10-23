@@ -7,6 +7,7 @@ from mmcv.cnn import get_model_complexity_info
 import cv2
 import requests
 import json
+import time
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
@@ -103,7 +104,7 @@ def main():
     output_path = args.output_path
     roc = args.roc
     # build the model from a config file and a checkpoint file
-    model = init_segmentor(config_file, checkpoint_file, device='cuda:1')
+    model = init_segmentor(config_file, checkpoint_file, device='cuda:0')
     for file_path  in os.listdir(path):
         if os.path.isfile(os.path.join(path, file_path)) == True:
            flopsimg = cv2.imread(os.path.join(path, file_path))
@@ -127,25 +128,39 @@ def main():
     requests.get(url)
 
     model = init_segmentor(config_file, checkpoint_file, device='cuda:1')
-    start_time=datetime.datetime.now()
-    print('starttime: '+ str(start_time))
-    count=0 
+    #start_time=datetime.datetime.now()
+    #print('starttime: '+ str(start_time))
+    count=0
+    sum_times = 0
     for file_path  in os.listdir(path):
         if os.path.isfile(os.path.join(path, file_path)) == True:
            img = os.path.join(path, file_path)
+           start_time = time.time()
            result = inference_segmentor(model, img, roc)
+           elapsed_time = time.time() - start_time
+           sum_times += elapsed_time
            model.show_result(img, result, palette=model.PALETTE,
                              out_file=os.path.join(output_path, file_path.replace('jpg', 'png')), save_annotation=True)
            #model.show_result(img, result, palette=[[0, 0, 0], [128, 0, 0], [128, 128, 0]],out_file=os.path.join(output_path, file_path.replace('jpg','png')),save_annotation=True)
            count = count + 1
-    end_time=datetime.datetime.now()
-    print('endtime: '+ str(end_time))
-    print(count)
-    print(output_path + ' fps :' + str(1/((end_time-start_time).seconds/count)))
-    url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(1/((end_time-start_time).seconds/count))
+
+    print('Average time per image: %.5f' % (sum_times / count))
+    print(args.output_path + ' fps :' + str(1 / (sum_times / count)))
+    url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(
+        1 / (sum_times / count))
     requests.get(url)
     url = r"http://localhost:8080/update/test_batch_status/" + args.modelname
     requests.get(url)
+
+
+    # end_time=datetime.datetime.now()
+    # print('endtime: '+ str(end_time))
+    # print(count)
+    # print(output_path + ' fps :' + str(1/((end_time-start_time).seconds/count)))
+    # url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(1/((end_time-start_time).seconds/count))
+    # requests.get(url)
+    # url = r"http://localhost:8080/update/test_batch_status/" + args.modelname
+    # requests.get(url)
 
 if __name__ == '__main__':
     main()

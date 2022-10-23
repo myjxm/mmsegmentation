@@ -25,7 +25,8 @@ def pixel_cross_entropy(pred,
                   pa=1,
                   only_block=True,
                   sky=False,
-                  sky_a=1):
+                  sky_a=1,
+                  denominator=8):
     """The wrapper function for :func:`F.cross_entropy`"""
     # class_weight is a manual rescaling weight given to each class.
     # If given, has to be a Tensor of size C element-wise losses
@@ -36,7 +37,7 @@ def pixel_cross_entropy(pred,
     colidx=np.array([i for i in range(heigh)])
     diclab=[dict(zip(sublab['key'],sublab['value'])) for sublab in lab]
     w=[np.array([colidx-subdiclab[i] for i in range(width)]).T for subdiclab in diclab]
-    g=[np.array([heigh-subdiclab[i] for i in range(width)])/8 for subdiclab in diclab]
+    g=[np.array([heigh-subdiclab[i] for i in range(width)])/denominator for subdiclab in diclab]
     a=copy.deepcopy(w)
     ###onlyblock set
     for suba in a:
@@ -67,7 +68,7 @@ def pixel_cross_entropy(pred,
     colidxforsky = np.array([i for i in range(1, heigh + 1)])
     s = [np.array([colidxforsky for i in range(width)]).T for sublab in label]
 
-    s = [1/(subs*subs*sky_a) for subs in s]
+    s = [1/(subs*sky_a) for subs in s]
     skylable = copy.deepcopy(label)
     for subskylable in skylable:
         subskylable[subskylable != 2] = 0
@@ -129,7 +130,8 @@ def cross_entropy(pred,
                   pa=1,
                   only_block=True,
                   sky=False,
-                  sky_a=1):
+                  sky_a=1,
+                  denominator=8):
     """The wrapper function for :func:`F.cross_entropy`"""
     # class_weight is a manual rescaling weight given to each class.
 
@@ -185,7 +187,8 @@ def binary_cross_entropy(pred,
                          pa=1,
                          only_block=True,
                          sky=False,
-                         sky_a=1
+                         sky_a=1,
+                         denominator=8
                          ):
     """Calculate the binary CrossEntropy loss.
 
@@ -235,7 +238,7 @@ def mask_cross_entropy(pred,
                        pa=1,
                        only_block=True,
                        sky=False,
-                       sky_a=1):
+                       sky_a=1,denominator=8):
     """Calculate the CrossEntropy loss for masks.
 
     Args:
@@ -299,7 +302,7 @@ class CrossEntropyLoss(nn.Module):
                  pa=1,
                  only_block=True,
                  sky=False,
-                 sky_a=1
+                 sky_a=1,denominator=8
                  ):
         super(CrossEntropyLoss, self).__init__()
         assert (use_sigmoid is False) or (use_mask is False)
@@ -315,6 +318,7 @@ class CrossEntropyLoss(nn.Module):
         self.only_block = only_block
         self.sky = sky
         self.sky_a = sky_a
+        self.denominator = denominator
 
         if self.use_sigmoid:
             self.cls_criterion = binary_cross_entropy
@@ -354,6 +358,7 @@ class CrossEntropyLoss(nn.Module):
             only_block=self.only_block,
             sky=self.sky,
             sky_a=self.sky_a,
+            denominator=self.denominator,
             **kwargs)
         return loss_cls
 

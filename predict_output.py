@@ -27,6 +27,7 @@ import torchvision.models as models
 from ptflops import get_model_complexity_info
 import requests
 import json
+import time
 
 
 def main(args):
@@ -103,7 +104,8 @@ def main(args):
     #      'You may need to check if all ops are supported and verify that the '
     #    'flops computation is correct.')
     count = 0
-    start_time = datetime.datetime.now()
+    sum_times = 0
+    #start_time = datetime.datetime.now()
     for file_path in os.listdir(args.img_path):
         if os.path.isfile(os.path.join(args.img_path, file_path)) == True:
             img = os.path.join(args.img_path, file_path)
@@ -124,10 +126,13 @@ def main(args):
             image = torch.from_numpy(image).float().cuda()
             sh = int(H * 0.5)
             sw = int(W * 0.5)
-            image = F.interpolate(image, (sh, sw), mode='bilinear', align_corners=True)
+            image = F.interpolate(image, (540, 960), mode='bilinear', align_corners=True)
             # image.resize([B,C,H,W])
             # image=torch.from_numpy(image)
+            start_time = time.time()
+
             outputs = model(image)
+
             # print(outputs.cpu().detach().numpy().astype(np.uint8).shape)
             outputs = F.interpolate(outputs, (H, W), mode='bilinear', align_corners=True)
             # print(outputs)
@@ -140,20 +145,30 @@ def main(args):
             # print('end')
             outputs = torch.argmax(outputs, 1).long()
             outputs = np.asarray(outputs.cpu(), dtype=np.uint8)
-
+            elapsed_time = time.time() - start_time
+            sum_times += elapsed_time
             res = Image.fromarray(outputs[0])
             # print(outputs)
             res.save(os.path.join(args.output_path, file_path.replace('jpg', 'png')))
             # io.imsave(os.path.join(args.output_path, file_path.replace('jpg','png')),
             # outputs.cpu().detach().numpy().astype(np.uint8)[0])
             count = count + 1
-    end_time = datetime.datetime.now()
-    print(args.output_path + ' fps :' + str(1 / ((end_time - start_time).seconds / count)))
+    #end_time = datetime.datetime.now()
+    print('Average time per image: %.5f' % (sum_times / count))
+    print(args.output_path + ' fps :' + str(1 / (sum_times / count)))
     url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(
-        1 / ((end_time - start_time).seconds / count))
+        1 / (sum_times / count))
     requests.get(url)
     url = r"http://localhost:8080/update/test_batch_status/" + args.modelname
     requests.get(url)
+
+
+    # print(args.output_path + ' fps :' + str(1 / ((end_time - start_time).seconds / count)))
+    # url = r"http://localhost:8080/update/performance/fps/" + args.modelname + "/" + str(
+    #     1 / ((end_time - start_time).seconds / count))
+    # requests.get(url)
+    # url = r"http://localhost:8080/update/test_batch_status/" + args.modelname
+    # requests.get(url)
 
 
 if __name__ == '__main__':
