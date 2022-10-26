@@ -303,6 +303,7 @@ class CPHeadPlus_V2(BaseDecodeHead):
         if self.concat_x:
             self.bottleneck = ConvModule(
                 self.bottle_channels + self.prior_channels * 2 + c1_channels + c0_channels,
+                #self.bottle_channels + c1_channels + c0_channels,
                 self.channels,
                 3,
                 padding=1,
@@ -404,7 +405,9 @@ class CPHeadPlus_V2(BaseDecodeHead):
 
         #print("cpnet cpouts output")
         #print(cp_outs.shape[2:])
+
         output = cp_outs
+        #output = x #最后实验需要去掉上下文相关性输出
         if self.c1_bottleneck is not None:
             c1_output = self.c1_bottleneck(inputs[self.out_index])
             #c1_output = inputs[self.out_index]

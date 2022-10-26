@@ -195,5 +195,7 @@ class AffinityLoss(nn.Module):
             elif loss == 'spec_precision_loss':
                global_term = global_term + spec_precision_loss
 
-        loss_cls = self.loss_weight * (unary_term + global_term)
+        #loss_cls = self.loss_weight * (unary_term + global_term)
+        loss_cls = self.loss_weight * unary_term
+        #loss_cls = self.loss_weight * global_term
         return loss_cls
