@@ -696,7 +696,7 @@ class ResNetV1c(ResNet):
     """
 
     def __init__(self, **kwargs):
-        super(ResNetV1c, self).__init__(
+        super(ResNetV1c, self).__init__(  #Python3.x 和 Python2.x 的一个区别: Python 3 可以使用直接使用 super().xxx 代替 super(Class, self).xxx :
             deep_stem=True, avg_down=False, **kwargs)
 
 

@@ -58,3 +58,6 @@ python /home/home2/zrd/project/mmsegmentation/get_colour_img.py --img-path '/hom
 fi
 done
 
+
+python /home/home2/zrd/project/mmsegmentation/save_land.py --config work-dirs/cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class_03/cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class.py   --load-from /home/home2/zrd/project/mmsegmentation/work-dirs/cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class_03/latest.pth  --image-path /home/home2/zrd/data/datasets/0527  --output-path  /home/home2/zrd/data/datasets/0527land  --roc -1  --modelname cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class_03  --dataset 0527
+python /home/home2/zrd/project/mmsegmentation/save_land.py --config work-dirs/cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class_03/cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class.py   --load-from /home/home2/zrd/project/mmsegmentation/work-dirs/cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class_03/latest.pth  --image-path /home/home2/zrd/data/datasets/landtest  --output-path  /home/home2/zrd/data/datasets/landtest/output  --roc -1  --modelname cpnetplus_v2_m-v2-detail_loss_zhuhai12749_3class_03  --dataset 0527
