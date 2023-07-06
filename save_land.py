@@ -29,7 +29,7 @@ def save(imgPath,savePath,subPath,model,roc):
     full_path=os.path.join(imgPath,subPath)
     for img in os.listdir(full_path):
         curPath = os.path.join(full_path, img)
-        if os.path.isdir(curPath) and img != 'datasets':
+        if os.path.isdir(curPath) and img != 'datasets' and img !='descriptors':
             save(imgPath,savePath,os.path.join(subPath,img),model,roc)
         elif os.path.isfile(curPath) and img != 'imgcon.py':
                 imgfile = curPath
